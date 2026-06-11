@@ -3,6 +3,34 @@
 All notable changes to Quest UI Reorder are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0-alpha] — 2026-06-11
+
+### Added
+
+- **One option, in the native Settings panel** (Esc → Options → AddOns →
+  Quest UI Reorder): "Split quests into sections by type", **on by
+  default**. Unticking collapses everything back into a single sorted
+  Quests section; re-ticking rebuilds the split — both live, no `/reload`.
+  Stored account-wide (`SavedVariables: QuestUIReorderDB`); label and
+  tooltip localized in all client languages. Sorting itself is
+  deliberately not optional.
+- Headless test harness for the toggle: the real addon code runs under a
+  desktop Lua against a stubbed Blizzard surface, covering login
+  activation, exact one-section-per-quest partition, off/on flapping
+  (no duplicate sections, no filter-wrapper stacking), self-heal
+  stability, disabled-at-login, and the failure latch.
+
+### Changed
+
+- Split internals refactored from a one-way setup into
+  build-once/activate/deactivate to support the live toggle; the
+  catch-all's narrowed filter and the stock filter/header are now swapped
+  by reference, built exactly once.
+- The "zero config" promise is now "one checkbox, sane default": no slash
+  commands, no saved settings beyond the single account-wide boolean, and
+  a missing/failed options panel leaves the addon fully functional at its
+  defaults.
+
 ## [0.3.0-alpha] — 2026-06-11
 
 ### Added
