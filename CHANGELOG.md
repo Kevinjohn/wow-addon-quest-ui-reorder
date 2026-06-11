@@ -8,8 +8,9 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **One option, in the native Settings panel** (Esc → Options → AddOns →
-  Quest UI Reorder): "Split quests into sections by type", **on by
-  default**. Unticking collapses everything back into a single sorted
+  Quest UI Reorder): "Split quests into sections", **on by default**
+  (label kept short so it never truncates in the settings list; the
+  tooltip carries the detail). Unticking collapses everything back into a single sorted
   Quests section; re-ticking rebuilds the split — both live, no `/reload`.
   Stored account-wide (`SavedVariables: QuestUIReorderDB`); label and
   tooltip localized in all client languages. Sorting itself is

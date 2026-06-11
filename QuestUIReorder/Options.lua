@@ -47,7 +47,7 @@ local function RegisterOptions()
         "splitSections",                                         -- key in QuestUIReorderDB
         QuestUIReorderDB,
         Settings.VarType.Boolean,
-        L.OPTION_SPLIT_LABEL or "Split quests into sections by type",
+        L.OPTION_SPLIT_LABEL or "Split quests into sections",
         true                                                     -- Settings.Default.True
     )
     assert(setting and type(setting.SetValueChangedCallback) == "function",

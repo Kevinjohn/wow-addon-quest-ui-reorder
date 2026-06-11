@@ -42,7 +42,7 @@ game's own nearest-first re-sort when you change zones.
 The addon has a single option, and it lives where the game keeps all addon
 options: **Esc → Options → AddOns → Quest UI Reorder**.
 
-- **Split quests into sections by type** (on by default). Untick it if the
+- **Split quests into sections** (on by default). Untick it if the
   extra sections aren't for you: all tracked quests collapse back into one
   **Quests** section, still sorted with the most important quest types at
   the top. The change applies immediately — no reload — and is remembered
