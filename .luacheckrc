@@ -5,13 +5,21 @@ read_globals = {
     -- WoW API
     "C_QuestInfoSystem",
     "C_QuestLog",
+    "CreateFrame",
     "Enum",
+    "hooksecurefunc",
+    "Mixin",
     "ORANGE_FONT_COLOR",
-    -- Blizzard tracker frame: read-only, except the single field below
+    -- Blizzard tracker globals: read-only, except the fields below
+    "ObjectiveTrackerManager",
     "QuestObjectiveTracker",
+    "QuestObjectiveTrackerMixin",
+    "QuestUtil",
 }
 
--- The one Blizzard field this addon is allowed to replace
+-- The only Blizzard fields this addon is allowed to replace
 globals = {
     "QuestObjectiveTracker.BuildQuestWatchInfos",
+    "QuestObjectiveTracker.ShouldDisplayQuest",
+    "QuestObjectiveTracker.headerText",
 }

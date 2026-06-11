@@ -1,34 +1,40 @@
 # Quest UI Reorder
 
-Sorts your tracked quests by importance.
+Splits your tracked quests into sections by importance.
 
 The on-screen quest list (the panel on the right toggled by the **All
-Objectives** button) normally shows your tracked quests in whatever order you
-happened to track them. With this addon, the **Quests** section is grouped so
-the quests that matter most are always at the top:
+Objectives** button) normally lumps every tracked quest into one **Quests**
+section, in whatever order you happened to track them. With this addon the
+high-value quest types each get their own collapsible section — built the
+same way the game builds its **Campaign** section — so the quests that
+matter most always sit at the top, under their own header:
 
-| | Quest type | How it's tagged in-game |
+| | Section | What goes in it |
 | --- | --- | --- |
-| 1 | Important | "Important" |
-| 2 | Legendary | "Legendary" |
-| 3 | Meta | "Meta" |
-| 4 | Repeatable | "Repeatable" |
-| 5 | Storyline | "Storyline" (the world map calls these "Local Story") |
-| 6 | Everything else | — |
+| 1 | Campaign | Blizzard's own section, untouched |
+| 2 | Important | quests tagged "Important" |
+| 3 | Legendary | quests tagged "Legendary" |
+| 4 | Meta | quests tagged "Meta" |
+| 5 | Repeatable | quests tagged "Repeatable" |
+| 6 | Other Quests | everything else, with "Storyline" quests sorted first |
 
-Within each group, quests stay in the order the game would have shown them —
-including the game's own nearest-first re-sort when you change zones.
+A section only appears while you actually track a quest of that type —
+Legendary quests are rare, so most of the time you'll simply see Campaign,
+maybe one or two of the special sections, and Other Quests. Each section has
+its own collapse arrow, just like Campaign does. Within every section,
+quests stay in the order the game would have shown them — including the
+game's own nearest-first re-sort when you change zones.
 
 ## What it will never do
 
 - **It never changes what you track.** The checkboxes you tick in your quest
-  log stay completely under your control; the addon only changes the order of
-  what's already shown. It will never hide a tracked quest or show an
-  untracked one.
+  log stay completely under your control; the addon only changes where and
+  in what order what's already shown appears. It will never hide a tracked
+  quest or show an untracked one.
 - **It never touches the Campaign section**, world quests, bonus objectives,
   achievements, or scenarios — only the Quests section.
 - **No setup needed.** There are no options, no saved settings, no slash
-  commands. Install it and the order is just right; uninstall it and
+  commands. Install it and the layout is just right; uninstall it and
   everything goes back to normal.
 
 ## Installation
@@ -52,18 +58,22 @@ screen.
 
 ## If something goes wrong
 
-The addon is designed to fail safe: if anything unexpected happens it quietly
-falls back to the game's normal quest order — never a broken tracker.
+The addon is designed to fail safe, in layers: if the separate sections can't
+be set up (usually after a game patch), it falls back to a single **Quests**
+section sorted in the same order — and if even sorting fails, you get the
+game's normal quest order. Never a broken tracker, never a missing quest.
 
 - An **orange chat message from QuestUIReorder** means it detected a problem
-  (usually after a game patch changed something) and switched itself off until
-  you `/reload`. Your tracker keeps working normally in the meantime.
+  and switched the affected feature off until you `/reload`. Your tracker
+  keeps working normally in the meantime.
 - Very rarely, clicking a quest item button on the tracker **during combat**
   may show "Interface action failed because of an AddOn". This is a known
   limitation of any addon that modifies the tracker; a `/reload` clears it.
+- Section collapse arrows reset to expanded on `/reload` or relog — the same
+  per-session behaviour as the game's own section headers.
 
 Found a bug? Please open an issue with the quest names, their tags, and the
-order you saw.
+sections/order you saw.
 
 ---
 
