@@ -1,0 +1,8 @@
+## Interface: 120005
+## Title: Quest UI Reorder
+## Notes: Reorders tracked quests in the Objective Tracker: Important, Legendary, Meta, Repeatable, Storyline, then everything else.
+## Author: Kevinjohn Gallagher
+## Version: 0.1.0-alpha
+## Dependencies: Blizzard_ObjectiveTracker
+
+QuestUIReorder.lua
