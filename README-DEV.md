@@ -10,10 +10,12 @@ and the release process.
 QuestUIReorder/            the addon (this folder is what ships / gets symlinked)
   QuestUIReorder.toc       Interface 120005, hard dep on Blizzard_ObjectiveTracker
   Locales.lua              translations (loaded first; publishes ns.L)
-  QuestUIReorder.lua       the addon logic
+  QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)
+  Options.lua              the one checkbox in the native Settings panel
 .luacheckrc                lint config (lua51 + WoW globals)
 README.md                  player-facing
 README-DEV.md              this file
+CONTRIBUTING.md            bug-report / code / translation guidelines
 CHANGELOG.md               release history
 ```
 
@@ -115,6 +117,53 @@ inert. The container is resolved via
 be `ObjectiveTrackerFrame`, so the sections follow the quest module wherever
 it lives.
 
+### The one option (Options.lua)
+
+A single account-wide boolean — `QuestUIReorderDB.splitSections`, default
+true — surfaced as a checkbox in the native Settings panel's AddOns tab via
+the modern `Settings` API (`RegisterVerticalLayoutCategory` →
+`RegisterAddOnSetting` → `CreateCheckbox` → `RegisterAddOnCategory`).
+Registration runs in `EventUtil.ContinueOnAddOnLoaded` (saved variables are
+only readable from ADDON_LOADED) and the whole thing is pcall'd: a failure
+costs the checkbox, never the addon.
+
+Verified API facts (live 12.0.5, `Blizzard_Settings_Shared`):
+
+- `Settings.RegisterAddOnSetting(categoryTbl, variable, variableKey,
+  variableTbl, variableType, name, defaultValue)` — returns the setting
+  object. It writes the default into `variableTbl[variableKey]` *before
+  returning* if the key is nil, but `assert`s the table itself exists —
+  create `QuestUIReorderDB = QuestUIReorderDB or {}` first.
+- The `variable` string is reserved globally across every addon's settings
+  and Blizzard's own; a collision is a hard `error()`. Hence the
+  addon-prefixed `"QuestUIReorder_SplitSections"`.
+- The real enum keys are `Settings.VarType.Boolean` and
+  `Settings.Default.True` — the usage comment at the top of Blizzard's own
+  `Blizzard_Settings.lua` says `VarType.Bool`/`Settings.Defaults` and is
+  **stale/wrong**; trust the definitions, not the comment.
+- `setting:SetValueChangedCallback(cb)` fires `cb(setting, value)` on every
+  applied change (addon settings apply immediately; there is no Apply
+  commit stage).
+- `Settings.CreateCheckbox` (lowercase "b") takes `(category, setting,
+  tooltip)`; the canonical usage example Blizzard ships is in
+  `Blizzard_Settings_Shared/Blizzard_ImplementationReadme.lua` — the only
+  in-tree user of the addon-setting path.
+
+The toggle applies **live**. The split logic is factored into build-once /
+activate / deactivate (`ApplySplitSetting` in the main file, exported on
+`ns`): deactivating removes the four modules from the container, restores
+the stock `ShouldDisplayQuest` *by reference* and the stock header, and
+dirties the tracker; reactivating re-registers the same module frames
+(events stay registered across a remove — the mixin's one-time init flag
+would silently skip re-registration anyway) and re-applies the same
+narrowed-filter closure, built exactly once so flapping the checkbox can
+never stack wrappers. Removed modules must be explicitly `Hide()`-den:
+stock code only hides modules it lays out, and a removed module is never
+laid out again. After any (de)activation, the section modules and the
+stock tracker are explicitly `MarkDirty()`-ed because a dirty-driven
+container relayout can serve cached layouts for modules it doesn't
+consider dirty.
+
 ### Verified plumbing facts (12.0.5, live source)
 
 Things checked in `Gethe/wow-ui-source` that the design leans on — re-verify
@@ -175,12 +224,21 @@ copies* of Blizzard's `QUEST_CLASSIFICATION_*` strings per locale
 (Ketho/BlizzardInterfaceResources, branch `live`,
 `Resources/GlobalStrings/<locale>.lua`) — never freehand, so they always
 match the in-game quest-log tags (note zhCN Meta = 统合 vs zhTW = 主任務,
-koKR = 상위). `OTHER_QUESTS` is the addon's only original string, composed
-per locale from Blizzard's `OTHER` + `TRACKER_HEADER_QUESTS` vocabulary with
-grammatical agreement (e.g. ruRU "Другие задания", esES "Otras misiones").
-Chat diagnostics deliberately stay English: they exist to be pasted into bug
-reports. When a patch rewords `QUEST_CLASSIFICATION_*`, re-grep the dumps and
-refresh the fallbacks.
+koKR = 상위). Everything else is the addon's own text, composed where
+possible from Blizzard's vocabulary (e.g. `OTHER_QUESTS` = `OTHER` +
+`TRACKER_HEADER_QUESTS` with grammatical agreement: ruRU "Другие задания",
+esES "Otras misiones"). When a patch rewords `QUEST_CLASSIFICATION_*`,
+re-grep the dumps and refresh the fallbacks.
+
+As of 0.5.0 *all* user-facing strings are localized, including the chat
+diagnostics (`MSG_*` keys — the earlier English-only policy was reversed by
+request) and the addon-list description (`## Notes-<locale>:` in the TOC).
+Each failure mode has its own `MSG_*` key, so a pasted bug report still
+identifies the exact safeguard that fired regardless of language;
+`MSG_SORT_DISABLED_FMT` carries a `%s` for the reason and the harness
+asserts the placeholder survives in every locale. The addon-original
+strings are maintainer-written with AI assistance and not all
+native-reviewed — CONTRIBUTING.md explicitly invites corrections.
 
 The merge logic is plain Lua and is verified headlessly (no game client):
 load `Locales.lua` once per `GetLocale()` value — all 10 translated locales,
@@ -215,7 +273,8 @@ two-line change to `SECTIONS` if it ever feels busy in practice.
 5. **Split is all-or-nothing** — sections are built first, registration is
    verified, and only then do they claim classifications and narrow the
    stock filter. Any failure before that point rolls back (modules removed,
-   events unregistered, hidden) and latches `splitState = "failed"`.
+   events unregistered, hidden) and latches `splitFailed`; the option
+   checkbox silently no-ops for the rest of the session.
 6. **Filter lookups are guarded** — our `ShouldDisplayQuest` overrides run
    inside Blizzard's layout pass where an uncaught error aborts the whole
    tracker update, so the stock-filter call and classification lookup are
@@ -233,6 +292,29 @@ can hit `ADDON_ACTION_BLOCKED`. This is inherent to reordering the tracker
 is no supported sort seam. Unhooking cannot fully clean the tainted method
 slot; only `/reload` does. Don't promise otherwise in user-facing text.
 
+## Headless tests
+
+Two harnesses run the real addon files under a desktop Lua (no game client;
+e.g. the one inside Homebrew's luacheck keg). Re-run both after touching
+their territory:
+
+- **Locales**: load `Locales.lua` once per possible `GetLocale()` value —
+  all 10 translated locales, enUS/enGB, an unknown locale, and `GetLocale`
+  absent — and assert every key resolves to a non-empty string.
+- **Toggle state machine**: stub the Blizzard surface Part 2 touches
+  (tracker, manager, container, `CreateFrame`, `Mixin`, `hooksecurefunc`,
+  quest stubs), load the real `QuestUIReorder.lua`, and drive it: login
+  activation with the setting on (4 sections, exact partition — every
+  classification displayed by exactly one module, fractional uiOrders
+  strictly between Campaign and Quests), live toggle off (stock filter
+  restored by reference, header restored), off/on flapping (no duplicate
+  sections, no wrapper stacking), `UpdateAll` self-heal stability,
+  disabled-at-login, and the creation-failure latch (exactly one chat
+  message, sorting untouched, latch holds against later toggles).
+
+What they cannot cover: real layout, taint, POI buttons, and the Settings
+panel itself — that stays on the in-game checklist below.
+
 ## Linting
 
 ```sh
@@ -241,7 +323,8 @@ luacheck QuestUIReorder
 
 `.luacheckrc` declares the Blizzard tracker globals read-only with exactly
 three writable fields (`QuestObjectiveTracker.BuildQuestWatchInfos`,
-`.ShouldDisplayQuest`, `.headerText`). This is deliberate: an accidental
+`.ShouldDisplayQuest`, `.headerText`) plus the addon's own saved-variables
+global (`QuestUIReorderDB`). This is deliberate: an accidental
 top-level `QuestObjectiveTracker = ...` or `ObjectiveTrackerManager = ...`
 assignment (which would clobber the global for the whole UI) fails lint,
 while the addon's legitimate field replacements pass. Verified by mutation
@@ -258,6 +341,10 @@ variable" for both.
    inside a section; quest-added fanfare lands in the right section;
    auto-accept popup (area-trigger quest) renders once, in the section
    matching its classification; `/reload` mid-session rebuilds the split.
+   Option: checkbox present under Options → AddOns; toggling off mid-session
+   collapses to one sorted section and back on rebuilds, both without
+   reload; the choice survives relog; first run writes
+   `QuestUIReorderDB.splitSections = true`.
 2. Only then bump `## Interface:` in the TOC. **Never pre-declare an
    unreleased patch number**: the runtime guard detects a *missing* method but
    not a changed contract, so the client's "out of date" flag is the only
@@ -278,6 +365,7 @@ variable" for both.
 | Info entry shape changed (`info.quest` gone) | sort fails per pass → silent Blizzard order → unhooks + one message after 10 passes |
 | Builder errors under taint (secret values) | immediate unhook + one message |
 | `quest:GetQuestClassification()` throws in filters | quest shows in catch-all for that pass; no error |
+| Settings API renamed/changed | one chat message, checkbox unavailable, split stays at its saved/default state |
 
 ## Reference material
 

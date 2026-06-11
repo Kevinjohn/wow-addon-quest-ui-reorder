@@ -7,7 +7,9 @@ read_globals = {
     "C_QuestLog",
     "CreateFrame",
     "Enum",
+    "EventUtil",
     "GetLocale",
+    "Settings",
     "hooksecurefunc",
     "Mixin",
     "ORANGE_FONT_COLOR",
@@ -18,9 +20,11 @@ read_globals = {
     "QuestUtil",
 }
 
--- The only Blizzard fields this addon is allowed to replace
+-- The only Blizzard fields this addon is allowed to replace, plus the
+-- addon's own saved-variables table
 globals = {
     "QuestObjectiveTracker.BuildQuestWatchInfos",
     "QuestObjectiveTracker.ShouldDisplayQuest",
     "QuestObjectiveTracker.headerText",
+    "QuestUIReorderDB",
 }

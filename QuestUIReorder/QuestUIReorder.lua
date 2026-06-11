@@ -38,6 +38,7 @@ local function PrintMessage(text)
     end
     print(("%s: %s"):format(prefix, text))
 end
+ns.PrintMessage = PrintMessage
 
 local tracker = QuestObjectiveTracker
 local classifications = Enum and Enum.QuestClassification
@@ -48,7 +49,8 @@ if not (tracker and tracker.BuildQuestWatchInfos
         and classifications
         and C_QuestLog and C_QuestLog.GetQuestWatchType
         and C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification) then
-    PrintMessage("the Blizzard quest tracker has changed; the addon is disabled.")
+    PrintMessage(L.MSG_ADDON_DISABLED
+        or "the Blizzard quest tracker has changed; the addon is disabled.")
     return
 end
 
@@ -115,7 +117,9 @@ local consecutiveFailures = 0
 
 local function Disable(reason)
     tracker.BuildQuestWatchInfos = origBuildQuestWatchInfos
-    PrintMessage(reason .. " — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry.")
+    local fmt = L.MSG_SORT_DISABLED_FMT
+        or "%s — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry."
+    PrintMessage(fmt:format(reason))
 end
 
 function tracker:BuildQuestWatchInfos()
@@ -124,11 +128,13 @@ function tracker:BuildQuestWatchInfos()
     -- so later layouts run it on a clean path.
     local ok, infos = pcall(origBuildQuestWatchInfos, self)
     if not ok then
-        Disable("the Blizzard quest tracker errored inside the sorting hook")
+        Disable(L.MSG_SORT_ERROR_BUILDER
+            or "the Blizzard quest tracker errored inside the sorting hook")
         return {}
     end
     if type(infos) ~= "table" then
-        Disable("the Blizzard quest tracker changed in an unexpected way")
+        Disable(L.MSG_SORT_CHANGED
+            or "the Blizzard quest tracker changed in an unexpected way")
         return infos
     end
 
@@ -140,7 +146,7 @@ function tracker:BuildQuestWatchInfos()
 
     consecutiveFailures = consecutiveFailures + 1
     if consecutiveFailures >= FAILURE_LIMIT then
-        Disable("quest sorting failed repeatedly")
+        Disable(L.MSG_SORT_REPEATED or "quest sorting failed repeatedly")
     end
     return infos
 end
@@ -160,8 +166,10 @@ if not (manager
         and type(questMixin) == "table"
         and type(questMixin.ShouldDisplayQuest) == "function"
         and tracker.ShouldDisplayQuest and tracker.SetHeader
+        and tracker.MarkDirty
         and CreateFrame and Mixin and hooksecurefunc) then
-    PrintMessage("the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
+    PrintMessage(L.MSG_SECTIONS_DISABLED
+        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
     return
 end
 
@@ -244,36 +252,79 @@ end
 
 local sectionModules = {}
 local claimedClassifications = {}
-local splitState = "pending" -- -> "live" (running) or "failed" (given up)
+local splitBuilt = false  -- sections created and classifications claimed (once)
+local splitActive = false -- sections registered and catch-all narrowed right now
+local splitFailed = false -- latched: no further attempts this session
 
-local function RemoveSections(container)
+-- The player's one option (see Options.lua): split on (the default) or
+-- off. Read straight from the saved variable, defaulting to on, so the
+-- split still works even if the options panel could not be registered.
+local function IsSplitEnabled()
+    local db = QuestUIReorderDB
+    return type(db) ~= "table" or db.splitSections ~= false
+end
+
+local function RemoveSections()
     for _, module in ipairs(sectionModules) do
+        local container = manager:GetContainerForModule(module)
         if container and type(container.RemoveModule) == "function" then
-            container:RemoveModule(module)
+            container:RemoveModule(module) -- also marks the container dirty
         end
-        module:UnregisterAllEvents()
+        -- A removed module is never laid out again, so stock code can no
+        -- longer hide it; do that here or it would linger with stale
+        -- content. Events stay registered: re-adding the module skips
+        -- registration (the mixin's one-time init flag), and a MarkDirty
+        -- from an unlisted module is ignored.
         module:Hide()
     end
 end
 
-local function FailSplit(container)
-    RemoveSections(container)
-    splitState = "failed"
-    PrintMessage("the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
+local function FailSplit()
+    RemoveSections()
+    for _, module in ipairs(sectionModules) do
+        module:UnregisterAllEvents()
+    end
+    splitFailed = true
+    PrintMessage(L.MSG_SECTIONS_DISABLED
+        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
 end
 
-local function TrySetUpSections()
-    if splitState == "failed" then
-        return
-    end
+-- The catch-all switch is built once and re-applied/restored on toggle,
+-- so repeated toggling can never stack wrappers around Blizzard's filter.
+local stockShouldDisplay = nil
+local stockHeaderText = nil
+local narrowedShouldDisplay = nil
 
+local function ApplyCatchAll()
+    if not narrowedShouldDisplay then
+        stockShouldDisplay = tracker.ShouldDisplayQuest
+        stockHeaderText = tracker.headerText
+        narrowedShouldDisplay = function(self, quest)
+            if not stockShouldDisplay(self, quest) then
+                return false
+            end
+            return not claimedClassifications[GetClassification(quest)]
+        end
+    end
+    tracker.ShouldDisplayQuest = narrowedShouldDisplay
+    tracker.headerText = OTHER_HEADER
+    tracker:SetHeader(OTHER_HEADER)
+end
+
+local function RestoreCatchAll()
+    tracker.ShouldDisplayQuest = stockShouldDisplay
+    tracker.headerText = stockHeaderText
+    tracker:SetHeader(stockHeaderText)
+end
+
+local function ActivateSplit()
     -- The container is resolved through the stock quest module rather than
     -- assumed, so the new sections always live wherever Blizzard put the
     -- section they split.
     local container = manager:GetContainerForModule(tracker)
     local questOrder = tracker.uiOrder
 
-    if splitState == "live" then
+    if splitActive then
         -- Self-heal: if something rebuilt the module list (the manager's
         -- RemoveAllModules ends in another UpdateAll), put the sections
         -- back beside the stock quest module — the narrowed catch-all
@@ -288,29 +339,35 @@ local function TrySetUpSections()
         return
     end
 
-    -- Still pending: the manager maps containers and modules in a deferred
-    -- Init, and until the stock quest module is mapped and ordered there is
-    -- nothing safe to attach to. The Init that completes the mapping always
-    -- ends in another UpdateAll, so just wait for it.
+    -- The manager maps containers and modules in a deferred Init, and until
+    -- the stock quest module is mapped and ordered there is nothing safe to
+    -- attach to. The Init that completes the mapping always ends in another
+    -- UpdateAll, so just wait for it.
     if not container or type(questOrder) ~= "number" then
         return
     end
 
-    -- Build every section before touching anything visible.
-    for _, section in ipairs(SECTIONS) do
-        local classification = classifications[section.name]
-        if classification ~= nil then
-            local ok, module = pcall(CreateSection, section, classification)
-            if not ok then
-                FailSplit(container)
-                return
+    -- Build every section once, before touching anything visible.
+    if not splitBuilt then
+        for _, section in ipairs(SECTIONS) do
+            local classification = classifications[section.name]
+            if classification ~= nil then
+                local ok, module = pcall(CreateSection, section, classification)
+                if not ok then
+                    FailSplit()
+                    return
+                end
+                table.insert(sectionModules, module)
             end
-            table.insert(sectionModules, module)
         end
-    end
-    if #sectionModules == 0 then
-        FailSplit(container)
-        return
+        if #sectionModules == 0 then
+            FailSplit()
+            return
+        end
+        for _, module in ipairs(sectionModules) do
+            claimedClassifications[module.qurClassification] = true
+        end
+        splitBuilt = true
     end
 
     -- Slot the sections into the gap directly above the stock Quests
@@ -322,7 +379,7 @@ local function TrySetUpSections()
     for i, module in ipairs(sectionModules) do
         module.uiOrder = questOrder - (#sectionModules + 1 - i) * step
         if not pcall(manager.SetModuleContainer, manager, module, container) then
-            FailSplit(container)
+            FailSplit()
             return
         end
     end
@@ -332,30 +389,53 @@ local function TrySetUpSections()
     -- any miss, so a half-split can never display a quest twice.
     for _, module in ipairs(sectionModules) do
         if manager:GetContainerForModule(module) ~= container then
-            FailSplit(container)
+            FailSplit()
             return
         end
     end
 
-    -- Point of no return: the new sections claim their classifications and
-    -- the stock section becomes the catch-all.
+    -- Only now does anything visible change: the new sections claim their
+    -- quests and the stock section becomes the catch-all.
+    ApplyCatchAll()
+    splitActive = true
+
+    -- A dirty-driven relayout can serve cached layouts for modules it does
+    -- not consider dirty, so explicitly dirty everything whose contents
+    -- just changed meaning.
     for _, module in ipairs(sectionModules) do
-        claimedClassifications[module.qurClassification] = true
+        module:MarkDirty()
     end
-    local origShouldDisplayQuest = tracker.ShouldDisplayQuest
-    function tracker:ShouldDisplayQuest(quest)
-        if not origShouldDisplayQuest(self, quest) then
-            return false
-        end
-        return not claimedClassifications[GetClassification(quest)]
-    end
-    tracker.headerText = OTHER_HEADER
-    tracker:SetHeader(OTHER_HEADER)
-    splitState = "live"
+    tracker:MarkDirty()
 end
+
+local function DeactivateSplit()
+    if not splitActive then
+        return
+    end
+    RemoveSections()
+    RestoreCatchAll()
+    splitActive = false
+    tracker:MarkDirty()
+end
+
+-- Called below whenever the tracker updates, and by Options.lua when the
+-- player toggles the checkbox. Activation self-defers until the tracker
+-- is ready; deactivation takes effect immediately.
+local function ApplySplitSetting()
+    if splitFailed then
+        return
+    end
+    if IsSplitEnabled() then
+        ActivateSplit()
+    else
+        DeactivateSplit()
+    end
+end
+ns.ApplySplitSetting = ApplySplitSetting
 
 -- ObjectiveTrackerManager:Init runs deferred (after PLAYER_ENTERING_WORLD
 -- and VARIABLES_LOADED) through a closure captured before any addon could
 -- hook Init itself — but it finishes with a dynamic self:UpdateAll(), so
--- hooking that catches the exact moment the tracker becomes ready.
-hooksecurefunc(manager, "UpdateAll", TrySetUpSections)
+-- hooking that catches the exact moment the tracker becomes ready. Saved
+-- variables load before either event, so the setting is readable by then.
+hooksecurefunc(manager, "UpdateAll", ApplySplitSetting)

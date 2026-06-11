@@ -33,9 +33,22 @@ game's own nearest-first re-sort when you change zones.
   quest or show an untracked one.
 - **It never touches the Campaign section**, world quests, bonus objectives,
   achievements, or scenarios — only the Quests section.
-- **No setup needed.** There are no options, no saved settings, no slash
-  commands. Install it and the layout is just right; uninstall it and
-  everything goes back to normal.
+- **Almost no setup.** There is exactly one option and one sane default;
+  no slash commands, no configuration ritual. Install it and the layout is
+  just right; uninstall it and everything goes back to normal.
+
+## Options
+
+The addon has a single option, and it lives where the game keeps all addon
+options: **Esc → Options → AddOns → Quest UI Reorder**.
+
+- **Split quests into sections** (on by default). Untick it if the
+  extra sections aren't for you: all tracked quests collapse back into one
+  **Quests** section, still sorted with the most important quest types at
+  the top. The change applies immediately — no reload — and is remembered
+  account-wide.
+
+The sorting itself is not optional; it's the point of the addon.
 
 ## Installation
 
@@ -81,8 +94,12 @@ game's normal quest order. Never a broken tracker, never a missing quest.
 - Section collapse arrows reset to expanded on `/reload` or relog — the same
   per-session behaviour as the game's own section headers.
 
-Found a bug? Please open an issue with the quest names, their tags, and the
-sections/order you saw.
+## Contributing
+
+Bug reports, fixes, and better translations are all welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for what to include in a bug report and
+how the translation files work. If a message or label reads awkwardly in
+your language, that's exactly the kind of fix we'd love a hand with.
 
 ---
 
