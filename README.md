@@ -49,6 +49,15 @@ then restart the game or type `/reload`:
 You should see **Quest UI Reorder** in the AddOns list on the character select
 screen.
 
+## Languages
+
+Works in every language the game supports: English, German, French, Spanish
+(EU and Latin American), Italian, Brazilian Portuguese, Russian, Korean, and
+Simplified and Traditional Chinese. The Important / Legendary / Meta /
+Repeatable headers use the game's own translated quest-type names, so they
+always match what your quest log shows; the **Other Quests** header ships
+with the addon's own translations, built from the game's vocabulary.
+
 ## Compatibility
 
 - Retail only, built and tested against patch **12.0.5**. Classic flavours are

@@ -9,7 +9,8 @@ and the release process.
 ```
 QuestUIReorder/            the addon (this folder is what ships / gets symlinked)
   QuestUIReorder.toc       Interface 120005, hard dep on Blizzard_ObjectiveTracker
-  QuestUIReorder.lua       the entire addon
+  Locales.lua              translations (loaded first; publishes ns.L)
+  QuestUIReorder.lua       the addon logic
 .luacheckrc                lint config (lua51 + WoW globals)
 README.md                  player-facing
 README-DEV.md              this file
@@ -156,8 +157,35 @@ Threat=9, WorldQuest=10. Label/atlas mapping lives in
 `g_classificationInfoTable` in `Blizzard_FrameXMLUtil/Mainline/QuestUtils.lua`;
 section headers use `QuestUtil.GetQuestClassificationInfo(c).text` (the raw
 localized tag — *not* `GetQuestClassificationDetails`, which time-suffixes
-Repeatable) with English fallbacks. "Other Quests" has no Blizzard global
-string and is English-only.
+Repeatable), falling back to the addon's own translations in `Locales.lua`,
+then to English literals.
+
+### Localization
+
+Header resolution is three-deep: Blizzard's runtime string (always correct
+for the client locale, survives Blizzard rewording) → `ns.L` from
+`Locales.lua` → English literal in `QuestUIReorder.lua` (survives a packaging
+error that drops the file). `Locales.lua` covers all retail client locales —
+deDE, esES, esMX (identical to esES, aliased), frFR, itIT, koKR, ptBR, ruRU,
+zhCN, zhTW — keyed by `GetLocale()`; enGB and unknown locales fall through to
+the English base table.
+
+Translation sourcing policy: the four classification fallbacks are *verbatim
+copies* of Blizzard's `QUEST_CLASSIFICATION_*` strings per locale
+(Ketho/BlizzardInterfaceResources, branch `live`,
+`Resources/GlobalStrings/<locale>.lua`) — never freehand, so they always
+match the in-game quest-log tags (note zhCN Meta = 统合 vs zhTW = 主任務,
+koKR = 상위). `OTHER_QUESTS` is the addon's only original string, composed
+per locale from Blizzard's `OTHER` + `TRACKER_HEADER_QUESTS` vocabulary with
+grammatical agreement (e.g. ruRU "Другие задания", esES "Otras misiones").
+Chat diagnostics deliberately stay English: they exist to be pasted into bug
+reports. When a patch rewords `QUEST_CLASSIFICATION_*`, re-grep the dumps and
+refresh the fallbacks.
+
+The merge logic is plain Lua and is verified headlessly (no game client):
+load `Locales.lua` once per `GetLocale()` value — all 10 translated locales,
+enUS/enGB, an unknown locale, and with `GetLocale` absent — and assert every
+key resolves to a non-empty string. Re-run after editing translations.
 
 Deliberate decisions: **Callings sort into "Other Quests"** (Blizzard floats
 them to the top) — per the original spec; and the split is

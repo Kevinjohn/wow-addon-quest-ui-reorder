@@ -24,7 +24,12 @@
 -- section split only goes live after every piece of it has succeeded, so
 -- a failure costs the split, never a quest.
 
-local ADDON_NAME = ...
+local ADDON_NAME, ns = ...
+
+-- Translations live in Locales.lua (loaded first via the TOC); the `or`
+-- defaults below keep the addon functional in English even if that file
+-- goes missing from a package.
+local L = (ns and ns.L) or {}
 
 local function PrintMessage(text)
     local prefix = ADDON_NAME
@@ -163,14 +168,15 @@ end
 -- One entry per new section, in on-screen order, slotted directly above
 -- the catch-all. A classification missing from a future client's enum is
 -- skipped; its quests stay in the catch-all. Headers use Blizzard's
--- localized quest-type names when available.
+-- localized quest-type names when available, then the addon's own
+-- translations, then English.
 local SECTIONS = {
-    { name = "Important", fallbackHeader = "Important" },
-    { name = "Legendary", fallbackHeader = "Legendary" },
-    { name = "Meta",      fallbackHeader = "Meta" },
-    { name = "Recurring", fallbackHeader = "Repeatable" },
+    { name = "Important", fallbackHeader = L.Important or "Important" },
+    { name = "Legendary", fallbackHeader = L.Legendary or "Legendary" },
+    { name = "Meta",      fallbackHeader = L.Meta or "Meta" },
+    { name = "Recurring", fallbackHeader = L.Recurring or "Repeatable" },
 }
-local OTHER_HEADER = "Other Quests"
+local OTHER_HEADER = L.OTHER_QUESTS or "Other Quests"
 
 -- The stock quest module's event list minus QUEST_AUTOCOMPLETE: auto-quest
 -- popup state is global and the stock module keeps maintaining it; the new

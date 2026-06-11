@@ -3,6 +3,33 @@
 All notable changes to Quest UI Reorder are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0-alpha] — 2026-06-11
+
+### Added
+
+- **Localization for every retail client language**: German, French, Spanish
+  (EU + Latin American), Italian, Brazilian Portuguese, Russian, Korean,
+  Simplified Chinese, and Traditional Chinese, plus English (US/EU). New
+  `Locales.lua` loads ahead of the main file and publishes the strings
+  through the addon-private table; English defaults survive even if the file
+  is missing.
+- The **"Other Quests"** header (the addon's only original string) is now
+  translated in all locales, composed from Blizzard's own `OTHER` +
+  "Quests" vocabulary with grammatical agreement.
+- The four classification fallback headers are now verbatim copies of
+  Blizzard's localized `QUEST_CLASSIFICATION_*` strings per locale (sourced
+  from Ketho/BlizzardInterfaceResources, `live`). They remain fallbacks
+  only: at runtime the section headers keep reading Blizzard's translated
+  strings directly, so they were already localized in 0.2.0.
+- Headless locale verification: the merge logic was executed for all 13
+  possible `GetLocale()` outcomes (10 translations, enUS/enGB, unknown
+  locale, and `GetLocale` absent) — every key resolves in every case.
+
+### Notes
+
+- Chat diagnostics intentionally remain English — they exist to be pasted
+  into bug reports.
+
 ## [0.2.0-alpha] — 2026-06-11
 
 Built against retail patch 12.0.5 (Interface 120005). In-game verification

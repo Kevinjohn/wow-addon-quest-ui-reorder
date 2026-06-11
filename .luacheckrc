@@ -7,6 +7,7 @@ read_globals = {
     "C_QuestLog",
     "CreateFrame",
     "Enum",
+    "GetLocale",
     "hooksecurefunc",
     "Mixin",
     "ORANGE_FONT_COLOR",
