@@ -49,7 +49,8 @@ if not (tracker and tracker.BuildQuestWatchInfos
         and classifications
         and C_QuestLog and C_QuestLog.GetQuestWatchType
         and C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification) then
-    PrintMessage("the Blizzard quest tracker has changed; the addon is disabled.")
+    PrintMessage(L.MSG_ADDON_DISABLED
+        or "the Blizzard quest tracker has changed; the addon is disabled.")
     return
 end
 
@@ -116,7 +117,9 @@ local consecutiveFailures = 0
 
 local function Disable(reason)
     tracker.BuildQuestWatchInfos = origBuildQuestWatchInfos
-    PrintMessage(reason .. " — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry.")
+    local fmt = L.MSG_SORT_DISABLED_FMT
+        or "%s — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry."
+    PrintMessage(fmt:format(reason))
 end
 
 function tracker:BuildQuestWatchInfos()
@@ -125,11 +128,13 @@ function tracker:BuildQuestWatchInfos()
     -- so later layouts run it on a clean path.
     local ok, infos = pcall(origBuildQuestWatchInfos, self)
     if not ok then
-        Disable("the Blizzard quest tracker errored inside the sorting hook")
+        Disable(L.MSG_SORT_ERROR_BUILDER
+            or "the Blizzard quest tracker errored inside the sorting hook")
         return {}
     end
     if type(infos) ~= "table" then
-        Disable("the Blizzard quest tracker changed in an unexpected way")
+        Disable(L.MSG_SORT_CHANGED
+            or "the Blizzard quest tracker changed in an unexpected way")
         return infos
     end
 
@@ -141,7 +146,7 @@ function tracker:BuildQuestWatchInfos()
 
     consecutiveFailures = consecutiveFailures + 1
     if consecutiveFailures >= FAILURE_LIMIT then
-        Disable("quest sorting failed repeatedly")
+        Disable(L.MSG_SORT_REPEATED or "quest sorting failed repeatedly")
     end
     return infos
 end
@@ -163,7 +168,8 @@ if not (manager
         and tracker.ShouldDisplayQuest and tracker.SetHeader
         and tracker.MarkDirty
         and CreateFrame and Mixin and hooksecurefunc) then
-    PrintMessage("the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
+    PrintMessage(L.MSG_SECTIONS_DISABLED
+        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
     return
 end
 
@@ -279,7 +285,8 @@ local function FailSplit()
         module:UnregisterAllEvents()
     end
     splitFailed = true
-    PrintMessage("the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
+    PrintMessage(L.MSG_SECTIONS_DISABLED
+        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
 end
 
 -- The catch-all switch is built once and re-applied/restored on toggle,

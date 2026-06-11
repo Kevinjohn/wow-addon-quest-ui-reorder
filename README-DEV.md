@@ -15,6 +15,7 @@ QuestUIReorder/            the addon (this folder is what ships / gets symlinked
 .luacheckrc                lint config (lua51 + WoW globals)
 README.md                  player-facing
 README-DEV.md              this file
+CONTRIBUTING.md            bug-report / code / translation guidelines
 CHANGELOG.md               release history
 ```
 
@@ -223,12 +224,21 @@ copies* of Blizzard's `QUEST_CLASSIFICATION_*` strings per locale
 (Ketho/BlizzardInterfaceResources, branch `live`,
 `Resources/GlobalStrings/<locale>.lua`) — never freehand, so they always
 match the in-game quest-log tags (note zhCN Meta = 统合 vs zhTW = 主任務,
-koKR = 상위). `OTHER_QUESTS` is the addon's only original string, composed
-per locale from Blizzard's `OTHER` + `TRACKER_HEADER_QUESTS` vocabulary with
-grammatical agreement (e.g. ruRU "Другие задания", esES "Otras misiones").
-Chat diagnostics deliberately stay English: they exist to be pasted into bug
-reports. When a patch rewords `QUEST_CLASSIFICATION_*`, re-grep the dumps and
-refresh the fallbacks.
+koKR = 상위). Everything else is the addon's own text, composed where
+possible from Blizzard's vocabulary (e.g. `OTHER_QUESTS` = `OTHER` +
+`TRACKER_HEADER_QUESTS` with grammatical agreement: ruRU "Другие задания",
+esES "Otras misiones"). When a patch rewords `QUEST_CLASSIFICATION_*`,
+re-grep the dumps and refresh the fallbacks.
+
+As of 0.5.0 *all* user-facing strings are localized, including the chat
+diagnostics (`MSG_*` keys — the earlier English-only policy was reversed by
+request) and the addon-list description (`## Notes-<locale>:` in the TOC).
+Each failure mode has its own `MSG_*` key, so a pasted bug report still
+identifies the exact safeguard that fired regardless of language;
+`MSG_SORT_DISABLED_FMT` carries a `%s` for the reason and the harness
+asserts the placeholder survives in every locale. The addon-original
+strings are maintainer-written with AI assistance and not all
+native-reviewed — CONTRIBUTING.md explicitly invites corrections.
 
 The merge logic is plain Lua and is verified headlessly (no game client):
 load `Locales.lua` once per `GetLocale()` value — all 10 translated locales,

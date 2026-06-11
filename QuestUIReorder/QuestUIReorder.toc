@@ -1,8 +1,18 @@
 ## Interface: 120005
 ## Title: Quest UI Reorder
 ## Notes: Splits tracked quests in the Objective Tracker into sections by quest type — Important, Legendary, Meta, Repeatable — with everything else sorted in "Other Quests".
+## Notes-deDE: Teilt verfolgte Quests im Zielverfolgungsfenster nach Typ in Abschnitte auf — Wichtig, Legendär, Meta, Wiederholbar — alles andere sortiert unter "Andere Quests".
+## Notes-esES: Divide las misiones seguidas en secciones por tipo — Importante, Legendaria, Meta, Repetible — con el resto ordenado en "Otras misiones".
+## Notes-esMX: Divide las misiones seguidas en secciones por tipo — Importante, Legendaria, Meta, Repetible — con el resto ordenado en "Otras misiones".
+## Notes-frFR: Divise les quêtes suivies en sections par type — Important, Légendaire, Méta, Répétable — le reste étant trié dans « Autres quêtes ».
+## Notes-itIT: Divide le missioni seguite in sezioni per tipo — Importante, Leggendaria, Meta, Ripetibile — con il resto ordinato in "Altre missioni".
+## Notes-koKR: 추적 중인 퀘스트를 유형별 섹션으로 나눕니다 — 중요, 전설, 상위, 반복 가능 — 나머지는 "기타 퀘스트"에 정렬되어 표시됩니다.
+## Notes-ptBR: Divide as missões acompanhadas em seções por tipo — Importante, Lendário, Meta, Repetível — com o restante ordenado em "Outras missões".
+## Notes-ruRU: Разделяет отслеживаемые задания на секции по типу — Важное, Легендарное, Мета, Повторяемое — остальные сортируются в секции "Другие задания".
+## Notes-zhCN: 将追踪的任务按类型拆分为多个区域——重要、传说、统合、可重复——其余任务排序后显示在"其它任务"中。
+## Notes-zhTW: 將追蹤的任務依類型拆分為多個區塊——重要、傳說、主任務、可重複——其餘任務排序後顯示在"其他任務"中。
 ## Author: Kevinjohn Gallagher
-## Version: 0.4.0-alpha
+## Version: 0.5.0-alpha
 ## Dependencies: Blizzard_ObjectiveTracker
 ## SavedVariables: QuestUIReorderDB
 

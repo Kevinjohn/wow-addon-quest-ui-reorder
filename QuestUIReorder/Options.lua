@@ -31,7 +31,8 @@ if not (Settings
         and type(Settings.RegisterAddOnCategory) == "function"
         and type(Settings.VarType) == "table"
         and EventUtil and type(EventUtil.ContinueOnAddOnLoaded) == "function") then
-    ns.PrintMessage("the Blizzard settings panel has changed; the options checkbox is unavailable (the addon keeps working with its defaults).")
+    ns.PrintMessage(L.MSG_OPTIONS_UNAVAILABLE
+        or "the Blizzard settings panel has changed; the options checkbox is unavailable (the addon keeps working with its defaults).")
     return
 end
 
@@ -67,6 +68,7 @@ end
 -- addon; ContinueOnAddOnLoaded is Blizzard's own helper for exactly that.
 EventUtil.ContinueOnAddOnLoaded(ADDON_NAME, function()
     if not pcall(RegisterOptions) then
-        ns.PrintMessage("the options checkbox could not be created (the addon keeps working with its defaults).")
+        ns.PrintMessage(L.MSG_OPTIONS_FAILED
+            or "the options checkbox could not be created (the addon keeps working with its defaults).")
     end
 end)

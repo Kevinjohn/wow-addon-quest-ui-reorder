@@ -3,6 +3,29 @@
 All notable changes to Quest UI Reorder are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0-alpha] — 2026-06-11
+
+### Added
+
+- **Every user-facing string is now localized**, completing what 0.3.0
+  started: the chat diagnostics (each failure mode has its own distinct
+  message key, so a pasted bug report identifies the exact safeguard that
+  fired in any language) and the addon-list description (localized
+  `## Notes-<locale>:` lines in the TOC).
+- **CONTRIBUTING.md**: guidelines for bug reports (what to include, why
+  the orange chat message should be pasted verbatim), code contributions
+  (the display-order-only ground rules, lint and headless-harness
+  requirements), and translations (which strings must stay
+  Blizzard-verbatim, which are addon-original and open to improvement,
+  placeholder rules, how to test). README links to it.
+
+### Changed
+
+- The "chat diagnostics stay English" policy from 0.3.0 is reversed by
+  request. The addon-original translations are maintainer-written with AI
+  assistance; native-speaker corrections are explicitly invited in
+  CONTRIBUTING.md.
+
 ## [0.4.0-alpha] — 2026-06-11
 
 ### Added

@@ -94,8 +94,12 @@ game's normal quest order. Never a broken tracker, never a missing quest.
 - Section collapse arrows reset to expanded on `/reload` or relog — the same
   per-session behaviour as the game's own section headers.
 
-Found a bug? Please open an issue with the quest names, their tags, and the
-sections/order you saw.
+## Contributing
+
+Bug reports, fixes, and better translations are all welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for what to include in a bug report and
+how the translation files work. If a message or label reads awkwardly in
+your language, that's exactly the kind of fix we'd love a hand with.
 
 ---
 
