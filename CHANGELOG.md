@@ -3,10 +3,11 @@
 All notable changes to Quest UI Reorder are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.2.0-alpha] — 2026-06-11 (unreleased, feature branch)
+## [0.2.0-alpha] — 2026-06-11
 
-Built against retail patch 12.0.5 (Interface 120005); not yet verified
-in-game.
+Built against retail patch 12.0.5 (Interface 120005). In-game verification
+of the new sections is still pending — see the release checklist in
+README-DEV.md before promoting beyond alpha.
 
 ### Added
 
