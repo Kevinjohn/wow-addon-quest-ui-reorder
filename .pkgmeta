@@ -2,6 +2,20 @@ package-as: QuestUIReorder
 
 enable-nolib-creation: no
 
+# Use the curated CHANGELOG.md for upload metadata instead of letting the
+# packager auto-generate one from raw commit messages. (CHANGELOG.md stays in
+# the ignore list below, so it feeds release notes but doesn't ship in the zip.)
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# The addon's Lua/TOC live in a QuestUIReorder/ subfolder (so it can be
+# symlinked straight into AddOns for dev). The BigWigs packager looks for the
+# TOC at the repo root, so this lifts the subfolder's contents up to the
+# package root — the zip then contains a single QuestUIReorder/ folder.
+move-folders:
+  QuestUIReorder/QuestUIReorder: QuestUIReorder
+
 # Repo-only files that should never ship inside the addon zip.
 ignore:
   - .github
