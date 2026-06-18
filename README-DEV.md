@@ -11,7 +11,7 @@ BigWigs packager can find the `.toc` — see [docs/packaging.md](docs/packaging.
 `.pkgmeta`'s `ignore:` list separates the shipped files from the repo-only ones.
 
 ```
-QuestUIReorder.toc       Interface 120005, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
+QuestUIReorder.toc       Interface 120007, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
 Locales.lua              translations (loaded first; publishes ns.L)              │ (+ LICENSE)
 QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)           │
 Options.lua              the one checkbox in the native Settings panel            ┘

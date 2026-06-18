@@ -1,4 +1,4 @@
-## Interface: 120005
+## Interface: 120007
 ## Title: Quest UI Reorder
 ## Notes: Splits tracked quests in the Objective Tracker into sections by quest type — Important, Legendary, Meta, Repeatable — with everything else sorted in "Other Quests".
 ## Notes-deDE: Teilt verfolgte Quests im Zielverfolgungsfenster nach Typ in Abschnitte auf — Wichtig, Legendär, Meta, Wiederholbar — alles andere sortiert unter "Andere Quests".

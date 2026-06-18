@@ -6,6 +6,8 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Changed
+- Bumped `## Interface:` to `120007` for retail patch 12.0.7 so the addon loads
+  without the "out of date" prompt.
 - Moved the addon's loaded files (`QuestUIReorder.toc`, `Locales.lua`,
   `QuestUIReorder.lua`, `Options.lua`) from the `QuestUIReorder/` subfolder to
   the repository root so the BigWigs packager can discover the `.toc`. The
