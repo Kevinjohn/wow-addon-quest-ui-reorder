@@ -3,6 +3,19 @@
 All notable changes to Quest UI Reorder are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+- Moved the addon's loaded files (`QuestUIReorder.toc`, `Locales.lua`,
+  `QuestUIReorder.lua`, `Options.lua`) from the `QuestUIReorder/` subfolder to
+  the repository root so the BigWigs packager can discover the `.toc`. The
+  packaged zip is still a single `QuestUIReorder/` folder. No in-game behaviour
+  change. See `docs/packaging.md`.
+- Removed the non-working `move-folders` block from `.pkgmeta` (it does not point
+  the packager at a nested `.toc`; root layout is the actual fix).
+- The release zip now bundles the curated `CHANGELOG.md` (dropped it from the
+  `.pkgmeta` ignore list), matching the other addon repos.
+
 ## [0.5.0-alpha] — 2026-06-11
 
 ### Added

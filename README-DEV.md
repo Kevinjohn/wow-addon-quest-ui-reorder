@@ -6,29 +6,33 @@ and the release process.
 
 ## Repo layout
 
+The addon's loaded files live at the **repository root** (root layout, so the
+BigWigs packager can find the `.toc` — see [docs/packaging.md](docs/packaging.md)).
+`.pkgmeta`'s `ignore:` list separates the shipped files from the repo-only ones.
+
 ```
-QuestUIReorder/            the addon (this folder is what ships / gets symlinked)
-  QuestUIReorder.toc       Interface 120005, hard dep on Blizzard_ObjectiveTracker
-  Locales.lua              translations (loaded first; publishes ns.L)
-  QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)
-  Options.lua              the one checkbox in the native Settings panel
-.luacheckrc                lint config (lua51 + WoW globals)
-README.md                  player-facing
-README-DEV.md              this file
-CONTRIBUTING.md            bug-report / code / translation guidelines
-CHANGELOG.md               release history
+QuestUIReorder.toc       Interface 120005, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
+Locales.lua              translations (loaded first; publishes ns.L)              │ (+ LICENSE)
+QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)           │
+Options.lua              the one checkbox in the native Settings panel            ┘
+.pkgmeta  .luacheckrc                                                             ┐
+scripts/  tests/  docs/  .github/                                                 │ repo-only
+README.md  README-DEV.md  CONTRIBUTING.md  SECURITY.md  CHANGELOG.md  …            ┘ (ignored)
 ```
 
 ## Dev install
 
-Symlink the addon folder into the game so repo edits go live on `/reload`:
+The addon is at the repo root, so symlink the **repo root** into the game as the
+addon folder; WoW only loads the files the `.toc` lists, so the repo-only files
+alongside are ignored. Edits go live on `/reload`:
 
 ```sh
-ln -sfn "$(pwd)/QuestUIReorder" "/Applications/Games/World of Warcraft/_retail_/Interface/AddOns/QuestUIReorder"
+ln -sfn "$(pwd)" "/Applications/Games/World of Warcraft/_retail_/Interface/AddOns/QuestUIReorder"
 ```
 
-Always use `-sfn`: a plain `ln -s` re-run against an existing link follows it
-and creates a cyclic `QuestUIReorder/QuestUIReorder` link inside the repo.
+Always use `-sfn`: a plain `ln -s` re-run against an existing link follows it and
+creates a cyclic link inside the target. The symlink's folder name must match the
+`.toc` base name (`QuestUIReorder`).
 
 ## How it works
 
@@ -326,7 +330,7 @@ and the Settings panel itself — that stays on the in-game checklist below.
 ## Linting
 
 ```sh
-luacheck QuestUIReorder
+luacheck *.lua
 ```
 
 `.luacheckrc` declares the Blizzard tracker globals read-only with exactly

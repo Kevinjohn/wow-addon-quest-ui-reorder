@@ -12,7 +12,8 @@
 --
 -- Run from the repo root:  lua tests/run.lua
 
-local LOCALES_FILE = "QuestUIReorder/Locales.lua"
+-- Root layout: the addon's Lua sits at the repo root (no addon subfolder).
+local LOCALES_FILE = "Locales.lua"
 
 -- Every GetLocale() value we care about: the 10 translated locales, esMX
 -- (aliased to esES in the file), enUS/enGB (no overlay -> the base), an

@@ -10,8 +10,7 @@ requests live at
 Open a GitHub issue and include:
 
 - The **addon version** (AddOns list on the character screen, or
-  `## Version` in `QuestUIReorder/QuestUIReorder.toc`) and the **game
-  patch**.
+  `## Version` in `QuestUIReorder.toc`) and the **game patch**.
 - Your **client language**.
 - The **quest names** involved and the type tag the game shows for each
   ("Important", "Legendary", "Meta", "Repeatable", "Storyline") — the
@@ -48,10 +47,9 @@ Open a GitHub issue and include:
 
 ## Translations
 
-All player-facing strings live in **`QuestUIReorder/Locales.lua`**, in one
-table per locale keyed by the client's `GetLocale()` value; the addon-list
-description is localized via the `## Notes-<locale>:` lines in
-`QuestUIReorder/QuestUIReorder.toc`.
+All player-facing strings live in **`Locales.lua`**, in one table per locale
+keyed by the client's `GetLocale()` value; the addon-list description is
+localized via the `## Notes-<locale>:` lines in `QuestUIReorder.toc`.
 
 What to know before editing:
 

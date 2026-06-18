@@ -9,7 +9,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "==> luacheck"
-luacheck QuestUIReorder
+# Root layout (so the BigWigs packager can find the .toc): the addon's Lua is at
+# the repo root. tests/ and scripts/ hold no root-level *.lua.
+luacheck *.lua
 
 # The tests target Lua 5.1 syntax, so any 5.1+ interpreter works — including
 # LuaJIT. Use the first one we find.

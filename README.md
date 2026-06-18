@@ -64,8 +64,10 @@ The sorting itself is not optional; it's the point of the addon.
 
 ## Installation
 
-Copy the `QuestUIReorder` folder into your World of Warcraft AddOns folder,
-then restart the game or type `/reload`:
+Download the latest `QuestUIReorder` zip from the
+[Releases page](https://github.com/Kevinjohn/wow-addon-quest-ui-reorder/releases),
+unzip it, and copy the `QuestUIReorder` folder into your World of Warcraft AddOns
+folder, then restart the game or type `/reload`:
 
 - **Windows:** `C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns\`
 - **Mac:** `/Applications/World of Warcraft/_retail_/Interface/AddOns/`
