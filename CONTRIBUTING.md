@@ -41,9 +41,9 @@ Open a GitHub issue and include:
   - Verify Blizzard internals against
     [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source)
     (`live` branch) — not against memory, wikis, or old forum posts.
-- Before opening a PR: `luacheck QuestUIReorder` must be clean, and run
-  the headless harnesses described in README-DEV ("Headless tests") if
-  you touched `Locales.lua` or the section-split logic.
+- Before opening a PR: run `sh scripts/check.sh` (luacheck + the headless
+  locale suite) and make sure it's clean. If you touched the section-split
+  logic, also run the in-game checklist in README-DEV ("Release process").
 - Branch from `main`, keep PRs focused on one change.
 
 ## Translations

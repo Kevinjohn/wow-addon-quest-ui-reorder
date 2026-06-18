@@ -294,26 +294,34 @@ slot; only `/reload` does. Don't promise otherwise in user-facing text.
 
 ## Headless tests
 
-Two harnesses run the real addon files under a desktop Lua (no game client;
-e.g. the one inside Homebrew's luacheck keg). Re-run both after touching
-their territory:
+Run the headless suite (and luacheck) with:
 
-- **Locales**: load `Locales.lua` once per possible `GetLocale()` value —
-  all 10 translated locales, enUS/enGB, an unknown locale, and `GetLocale`
-  absent — and assert every key resolves to a non-empty string.
-- **Toggle state machine**: stub the Blizzard surface Part 2 touches
-  (tracker, manager, container, `CreateFrame`, `Mixin`, `hooksecurefunc`,
-  quest stubs), load the real `QuestUIReorder.lua`, and drive it: login
-  activation with the setting on (4 sections, exact partition — every
-  classification displayed by exactly one module, fractional uiOrders
-  strictly between Campaign and Quests), live toggle off (stock filter
-  restored by reference, header restored), off/on flapping (no duplicate
-  sections, no wrapper stacking), `UpdateAll` self-heal stability,
-  disabled-at-login, and the creation-failure latch (exactly one chat
-  message, sorting untouched, latch holds against later toggles).
+```sh
+sh scripts/check.sh
+```
 
-What they cannot cover: real layout, taint, POI buttons, and the Settings
-panel itself — that stays on the in-game checklist below.
+It needs only luacheck and any Lua >= 5.1 on `PATH` (no game client; e.g. the
+interpreter inside Homebrew's luacheck keg, or `luajit`).
+
+- **Locales** — committed as `tests/run.lua`: loads the real `Locales.lua`
+  once per possible `GetLocale()` value (all 10 translated locales, esMX,
+  enUS/enGB, an unknown locale, and `GetLocale` absent) and asserts every
+  base key resolves to a non-empty string, no locale introduces a stray key,
+  and `MSG_SORT_DISABLED_FMT` keeps its single `%s` and a literal `/reload`.
+  Re-run after touching `Locales.lua`.
+
+A **toggle state-machine** harness is planned but not yet committed: stub the
+Blizzard surface Part 2 touches (tracker, manager, container, `CreateFrame`,
+`Mixin`, `hooksecurefunc`, quest stubs), load the real `QuestUIReorder.lua`,
+and drive it — login activation with the setting on (4 sections, exact
+partition; fractional uiOrders strictly between Campaign and Quests), live
+toggle off (stock filter restored by reference, header restored), off/on
+flapping (no duplicate sections, no wrapper stacking), `UpdateAll` self-heal
+stability, disabled-at-login, and the creation-failure latch. Until it lands,
+those behaviours stay on the in-game checklist below.
+
+What headless tests cannot cover regardless: real layout, taint, POI buttons,
+and the Settings panel itself — that stays on the in-game checklist below.
 
 ## Linting
 

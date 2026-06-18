@@ -12,9 +12,16 @@
 ## Notes-zhCN: 将追踪的任务按类型拆分为多个区域——重要、传说、统合、可重复——其余任务排序后显示在"其它任务"中。
 ## Notes-zhTW: 將追蹤的任務依類型拆分為多個區塊——重要、傳說、主任務、可重複——其餘任務排序後顯示在"其他任務"中。
 ## Author: Kevinjohn Gallagher
-## Version: 0.5.0-alpha
+## Version: @project-version@
+## X-License: MIT
+## X-Website: https://github.com/Kevinjohn/wow-addon-quest-ui-reorder
 ## Dependencies: Blizzard_ObjectiveTracker
 ## SavedVariables: QuestUIReorderDB
+
+# To publish to CurseForge / Wago later, create the projects then uncomment
+# and fill these (the packager reads them to upload the build):
+# ## X-Curse-Project-ID: 000000
+# ## X-Wago-ID: 000000
 
 Locales.lua
 QuestUIReorder.lua

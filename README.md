@@ -1,5 +1,12 @@
 # Quest UI Reorder
 
+[![Release](https://img.shields.io/github/v/release/Kevinjohn/wow-addon-quest-ui-reorder?include_prereleases&sort=semver)](https://github.com/Kevinjohn/wow-addon-quest-ui-reorder/releases)
+[![License: MIT](https://img.shields.io/github/license/Kevinjohn/wow-addon-quest-ui-reorder)](LICENSE)
+![Interface](https://img.shields.io/badge/Interface-120005-blue)
+![Last commit](https://img.shields.io/github/last-commit/Kevinjohn/wow-addon-quest-ui-reorder)
+
+<!-- Keep the Interface badge above in step with `## Interface` in the .toc. -->
+
 Splits your tracked quests into sections by importance.
 
 The on-screen quest list (the panel on the right toggled by the **All
@@ -24,6 +31,11 @@ maybe one or two of the special sections, and Other Quests. Each section has
 its own collapse arrow, just like Campaign does. Within every section,
 quests stay in the order the game would have shown them — including the
 game's own nearest-first re-sort when you change zones.
+
+## Screenshots
+
+<!-- Drop screenshots into docs/img/ and reference them here. -->
+![Tracked quests split into sections by type](docs/img/sections.png)
 
 ## What it will never do
 
@@ -102,5 +114,11 @@ how the translation files work. If a message or label reads awkwardly in
 your language, that's exactly the kind of fix we'd love a hand with.
 
 ---
+
+**Install:** grab the latest zip from the
+[Releases page](https://github.com/Kevinjohn/wow-addon-quest-ui-reorder/releases)
+and unzip it into your AddOns folder (see [Installation](#installation) above for
+the exact path). Contributions are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [MIT](LICENSE).
 
 *Developers: see [README-DEV.md](README-DEV.md).*
