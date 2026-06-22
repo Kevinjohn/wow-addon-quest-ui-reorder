@@ -2,8 +2,10 @@
 
 A reusable checklist for getting a WoW addon's GitHub repo ready for a public
 release. This repo was set up with it; copy it into your other addon repos and
-work top to bottom. It assumes a lean, GitHub-only setup (no CI workflows;
-release zips built locally with the BigWigs packager).
+work top to bottom. The baseline is a lean, GitHub-only setup with release zips
+built locally by the BigWigs packager (steps 1–11). Automated releases via
+GitHub Actions are an optional add-on layered on top — see §7b; this repo ships
+that workflow.
 
 > **Layout (do this first — it bites late otherwise).** Put the addon's loaded
 > files (`.toc`, `.lua`, any `Locales/`, `LICENSE`) at the **repository root**,
@@ -91,7 +93,7 @@ ignore:
       migration steps at the bottom). `move-folders` is for splitting one repo into
       multiple *output* addon folders, not for source discovery.
 
-## 5. Local scripts  (no CI)
+## 5. Local scripts  (local build/test; CI is optional — §7b)
 - [ ] `scripts/check.sh` (chmod +x) — luacheck + tests, auto-detecting the interpreter:
 ```sh
 #!/usr/bin/env sh
@@ -131,12 +133,50 @@ This project adopts the Contributor Covenant v2.1
 Be respectful, welcoming, constructive. Report concerns privately to <email>.
 ```
 
-## 7. .github templates  (templates only — NO workflows/)
+## 7. .github templates  (issue/PR templates; release workflow is optional — §7b)
 - [ ] `.github/ISSUE_TEMPLATE/bug_report.yml` (form: addon version, WoW build,
       what happened, repro, error text, screenshot)
 - [ ] `.github/ISSUE_TEMPLATE/feature_request.yml`
 - [ ] `.github/ISSUE_TEMPLATE/config.yml` → `blank_issues_enabled: false`
 - [ ] `.github/pull_request_template.md` (summary + "ran scripts/check.sh" + "CHANGELOG updated")
+
+## 7b. Optional: automated releases (GitHub Actions)
+The lean baseline (steps 5 + 11) builds/uploads from your machine. To publish on
+a tag push instead, add `.github/workflows/release.yml` running the **same**
+BigWigs packager (it honours the same `.pkgmeta`):
+```yaml
+name: Package and release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write          # lets the packager create the GitHub Release
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history+tags for @project-version@
+      - uses: BigWigsMods/packager@v2
+        env:
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}   # auto-provided
+          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}     # secret name vs packager env name — see below
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+```
+- [ ] **Secret → env name:** the packager reads CurseForge from `CF_API_KEY`, so
+      map the repo secret to it (`CF_API_KEY: ${{ secrets.CF_API_TOKEN }}`).
+      Wago/GitHub names match (`WAGO_API_TOKEN`, `GITHUB_OAUTH`←`GITHUB_TOKEN`).
+- [ ] **Safe before stores exist:** missing secrets render empty and the packager
+      skips that upload; CF/Wago upload only fire once *both* the secret **and**
+      the `X-Curse-Project-ID` / `X-Wago-ID` in the `.toc` are set. Until then a
+      tag push just builds the zip and creates the GitHub Release.
+- [ ] **Tag must contain the workflow:** a tag-triggered run uses `release.yml`
+      *as it exists in the tagged commit*. Tags created **before** you add the
+      workflow won't trigger it — commit the workflow first, then tag a commit
+      that includes it.
+- [ ] **Repo must allow it:** Settings → Actions → Workflow permissions =
+      read/write (the `permissions:` block grants the job write, but org/repo
+      policy can still block it).
 
 ## 8. .gitignore
 - [ ] Add the packager output dir:

@@ -5,6 +5,15 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Automated releases via GitHub Actions (`.github/workflows/release.yml`):
+  pushing a `vX.Y.Z` tag runs the same BigWigs packager in CI and publishes a
+  GitHub Release with the zip attached. CurseForge/Wago uploads are wired and
+  switch on once their project IDs are filled into the `.toc` and the
+  `CF_API_TOKEN` / `WAGO_API_TOKEN` repo secrets are set; until then a tag push
+  just builds the zip and creates the GitHub Release. See `docs/packaging.md`
+  and `_wow-Addon-Publishing-Readiness.md`.
+
 ### Changed
 - Bumped `## Interface:` to `120007` for retail patch 12.0.7 so the addon loads
   without the "out of date" prompt.

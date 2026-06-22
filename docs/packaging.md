@@ -85,10 +85,35 @@ git tag v0.6.0-alpha && git push --tags
 sh scripts/release.sh
 ```
 
-Publishing to CurseForge / Wago / a GitHub Release later: fill the
-`X-Curse-Project-ID` / `X-Wago-ID` stubs in the `.toc`, export `CF_API_KEY` /
-`WAGO_API_TOKEN` / `GITHUB_OAUTH`, and run `scripts/release.sh` without `-d` (or
-wire up the BigWigs GitHub Action, which runs the same packager).
+## Automated releases (GitHub Actions)
+
+`.github/workflows/release.yml` runs the **same** BigWigs packager in CI on every
+`vX.Y.Z` tag push, so it honours this `.pkgmeta` exactly as the local script does.
+On a tag push it always builds the zip and creates a GitHub Release with it
+attached; it additionally uploads to CurseForge / Wago once both halves of each
+are in place:
+
+- **CurseForge:** the `CF_API_TOKEN` repo secret **and** `## X-Curse-Project-ID:`
+  in the `.toc`.
+- **Wago:** the `WAGO_API_TOKEN` repo secret **and** `## X-Wago-ID:` in the `.toc`.
+
+With neither configured the packager simply skips those uploads, so the workflow
+is safe before the projects exist. The full enable steps live in
+`_wow-Addon-Publishing-Readiness.md` (Remaining actions). To release:
+
+```sh
+git tag v0.6.0-alpha && git push origin v0.6.0-alpha
+```
+
+A tag-triggered run uses `release.yml` *as it exists in the tagged commit*, so
+commit the workflow first and tag a commit that includes it — tags made before it
+was added (e.g. the existing `v0.5.0-alpha`) won't trigger a run. The repo's
+Settings → Actions → Workflow permissions must also be read/write.
+
+Manual / no-upload builds still go through `scripts/release.sh` (above). To
+publish manually instead of via CI, fill the `X-Curse-Project-ID` / `X-Wago-ID`
+stubs, export `CF_API_KEY` / `WAGO_API_TOKEN` / `GITHUB_OAUTH`, and run
+`scripts/release.sh` without `-d`.
 
 ## Development symlink
 

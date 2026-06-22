@@ -1,0 +1,55 @@
+name: Package and release
+
+# Build the addon zip with the BigWigs packager and publish it whenever a
+# version tag (vX.Y.Z) is pushed. This runs the *same* packager as
+# scripts/release.sh, so it honours .pkgmeta (package-as, the ignore list, and
+# the curated manual-changelog).
+#
+# What happens on a tag push:
+#   * Always: builds the zip and creates a GitHub Release with it attached
+#     (GITHUB_TOKEN is provided automatically; the contents:write permission
+#     below lets the packager create the release).
+#   * CurseForge upload: happens only once BOTH the CF_API_TOKEN repo secret is
+#     set AND `## X-Curse-Project-ID:` is present in QuestUIReorder.toc.
+#   * Wago upload: happens only once BOTH the WAGO_API_TOKEN repo secret is set
+#     AND `## X-Wago-ID:` is present in QuestUIReorder.toc.
+# With neither configured, the packager simply skips those uploads, so this
+# workflow is safe to merge before the CurseForge/Wago projects exist.
+#
+# To enable store uploads later:
+#   1. Create the CurseForge / Wago projects, note their IDs.
+#   2. Uncomment and fill ## X-Curse-Project-ID / ## X-Wago-ID in the .toc.
+#   3. Add repo secrets CF_API_TOKEN and WAGO_API_TOKEN
+#      (Settings -> Secrets and variables -> Actions).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# The packager creates the GitHub Release, which needs write access to contents.
+permissions:
+  contents: write
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags so the packager can resolve @project-version@
+          # and generate release metadata.
+          fetch-depth: 0
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2
+        env:
+          # GitHub Release. The packager reads GITHUB_OAUTH; GITHUB_TOKEN is
+          # injected automatically and works with the contents:write perm above.
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          # CurseForge. Repo secret name per the publishing checklist (CF_API_TOKEN);
+          # the packager reads it from CF_API_KEY. Empty -> CurseForge upload skipped.
+          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
+          # Wago. Empty -> Wago upload skipped.
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
