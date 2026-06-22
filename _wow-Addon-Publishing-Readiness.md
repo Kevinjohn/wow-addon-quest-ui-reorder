@@ -55,14 +55,14 @@ wow-addon-quest-ui-reorder/
 - [x] Interface version is current for supported WoW version. (`120007` = patch **12.0.7**)
 - [x] `## Version:` exists.
 - [x] Version uses `## Version: @project-version@` (packager stamps the git tag at build time)
-- [ ] `## X-Curse-Project-ID:` exists. — present as a **commented stub**; uncomment & fill once the CurseForge project exists. 🔧 **ACTION (you)**
-- [ ] `## X-Wago-ID:` exists. — present as a **commented stub**; uncomment & fill once the Wago project exists. 🔧 **ACTION (you)**
+- [x] `## X-Curse-Project-ID:` exists. — line present with a `000000` placeholder; replace with the real ID once the CurseForge project exists. 🔧 **ACTION (you)**
+- [x] `## X-Wago-ID:` exists. — line present with a `000000` placeholder; replace with the real ID once the Wago project exists. 🔧 **ACTION (you)**
 
-The stub already in the `.toc` (uncomment and fill the real IDs):
+Now uncommented in the `.toc` (replace the placeholder with the real IDs):
 
 ```toc
-# ## X-Curse-Project-ID: 000000
-# ## X-Wago-ID: 000000
+## X-Curse-Project-ID: 000000
+## X-Wago-ID: 000000
 ```
 
 ---
@@ -266,8 +266,8 @@ Everything in the repo is configured. To finish enabling the CurseForge/Wago pat
 1. **Create the CurseForge project** (https://authors.curseforge.com/) and the
    **Wago project** (https://addons.wago.io/); set each project's source URL to
    the repo and add a description/icon.
-2. **Put the IDs in the `.toc`** — uncomment and fill `## X-Curse-Project-ID:`
-   and `## X-Wago-ID:` in `QuestUIReorder.toc` (Phase 1). Commit.
+2. **Put the real IDs in the `.toc`** — replace the `000000` placeholders in
+   `## X-Curse-Project-ID:` / `## X-Wago-ID:` in `QuestUIReorder.toc` (Phase 1). Commit.
 3. **Add the repo secrets** (Settings → Secrets and variables → Actions):
    `CF_API_TOKEN` (CurseForge API token) and `WAGO_API_TOKEN` (Wago API token).
 4. **Push a test tag** (`v0.0.1-test`) and confirm the GitHub Release + both
