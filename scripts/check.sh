@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Run the same checks locally that you'd want green before committing:
-#   * luacheck over the addon (config in .luacheckrc)
+#   * luacheck over the addon (config in .luacheckrc; tests are excluded there)
 #   * the headless locale regression suite
 #
 # Usage:  sh scripts/check.sh   (from the repo root, or anywhere)
@@ -10,8 +10,8 @@ cd "$(dirname "$0")/.."
 
 echo "==> luacheck"
 # Root layout (so the BigWigs packager can find the .toc): the addon's Lua is at
-# the repo root. tests/ and scripts/ hold no root-level *.lua.
-luacheck *.lua
+# the repo root plus Locales/. tests/ and scripts/ are not lua at those paths.
+luacheck *.lua Locales/*.lua
 
 # The tests target Lua 5.1 syntax, so any 5.1+ interpreter works — including
 # LuaJIT. Use the first one we find.

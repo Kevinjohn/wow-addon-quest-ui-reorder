@@ -11,7 +11,8 @@ at the end — the steps to convert another addon repo to the same layout.
   at the repo root (`$topdir/<package-as>.toc`). `package-as` renames the folder
   *inside the zip*; it cannot point the packager at a subfolder.
 - `.pkgmeta`'s `ignore:` list is what keeps the repo-only files (scripts, tests,
-  docs, README, CI templates, the changelog) out of the shipped zip.
+  docs, screenshots, the READMEs, CI templates) out of the shipped zip. The
+  curated `CHANGELOG.md` is shipped separately via `manual-changelog` (see below).
 - Build a no-upload zip with `sh scripts/release.sh` (needs `bash` >= 4.3).
 
 ## Why root layout (the non-obvious bit)
@@ -45,7 +46,7 @@ a folder.
 ```
 QuestUIReorder/
   QuestUIReorder.toc         # @project-version@ replaced with the git tag
-  Locales.lua  QuestUIReorder.lua  Options.lua
+  Locales/  QuestUIReorder.lua  Options.lua
   LICENSE
   CHANGELOG.md               # our curated one (see the changelog gotcha below)
 ```
@@ -150,7 +151,7 @@ For an addon repo currently laid out as `AddonName/AddonName.toc`, flatten it:
    - `scripts/check.sh`: `luacheck AddonName` → `luacheck *.lua` (add
      `Locales/*.lua` if your Lua is nested).
    - test runner: drop the `AddonName/` prefix from any load paths.
-   - README / README-DEV: layout text and the dev-symlink target (symlink the
+   - README / README-dev: layout text and the dev-symlink target (symlink the
      repo root, as above).
 
 4. **Fix exec bits** (the AddOns-folder symlink on macOS flips source files to

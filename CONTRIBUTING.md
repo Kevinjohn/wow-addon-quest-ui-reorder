@@ -25,12 +25,12 @@ Open a GitHub issue and include:
 
 ## Bug fixes & code
 
-- **Read [README-DEV.md](README-DEV.md) first.** It documents the
+- **Read [README-dev.md](README-dev.md) first.** It documents the
   architecture, the verified Blizzard internals the addon leans on, and
   the failure-handling design; most "why is this so paranoid?" questions
   are answered there.
 - **Dev setup** is a symlink into your AddOns folder (see "Dev install"
-  in README-DEV); edits go live on `/reload`.
+  in README-dev); edits go live on `/reload`.
 - Ground rules the codebase holds to — PRs that break these won't land:
   - **Display order only.** Never modify the player's tracked-quest watch
     list; never drop or invent entries. Every failure path falls back to
@@ -42,14 +42,19 @@ Open a GitHub issue and include:
     (`live` branch) — not against memory, wikis, or old forum posts.
 - Before opening a PR: run `sh scripts/check.sh` (luacheck + the headless
   locale suite) and make sure it's clean. If you touched the section-split
-  logic, also run the in-game checklist in README-DEV ("Release process").
+  logic, also run the in-game checklist in README-dev ("Release process").
+- Add a short, plain-language note to [`CHANGELOG.md`](CHANGELOG.md), and any
+  technical detail to [`CHANGELOG-dev.md`](CHANGELOG-dev.md).
 - Branch from `main`, keep PRs focused on one change.
 
 ## Translations
 
-All player-facing strings live in **`Locales.lua`**, in one table per locale
-keyed by the client's `GetLocale()` value; the addon-list description is
-localized via the `## Notes-<locale>:` lines in `QuestUIReorder.toc`.
+All player-facing strings live in **`Locales/`**, one file per language
+(`Locales/<locale>.lua`) guarded by the client's `GetLocale()` value.
+`Locales/enUS.lua` is the source of truth for which keys exist — a locale file
+may only **override** keys enUS already defines. The addon-list description is
+localized separately, via the `## Notes-<locale>:` lines in
+`QuestUIReorder.toc`.
 
 What to know before editing:
 
@@ -69,9 +74,12 @@ What to know before editing:
 - Keep the checkbox label (`OPTION_SPLIT_LABEL`) short — the Settings
   panel truncates long labels; the tooltip is the place for detail.
 - To check your work without the game: run the headless locale harness
-  (README-DEV, "Headless tests") — it loads `Locales.lua` for every
-  locale and asserts every key resolves. In-game, `GetLocale()` follows
-  the client language, so either switch the client or temporarily
-  hardcode your locale at the bottom of `Locales.lua` while testing.
-- Adding a missing locale = adding one new table to `translations` keyed
-  by its `GetLocale()` value, plus a `## Notes-<locale>:` line in the TOC.
+  (README-dev, "Headless tests") — it loads `Locales/enUS.lua` plus each
+  per-locale overlay and asserts every key resolves (and that each locale
+  actually applies). In-game, `GetLocale()` follows the client language, so
+  either switch the client or temporarily relax the `GetLocale()` guard at
+  the top of your `Locales/<locale>.lua` while testing.
+- Adding a missing locale = adding one new `Locales/<locale>.lua` file (copy
+  the keys from `Locales/enUS.lua`, guard it with
+  `if GetLocale() ~= "<locale>" then return end`), listing it in the TOC's
+  load order, plus a `## Notes-<locale>:` line in the TOC.

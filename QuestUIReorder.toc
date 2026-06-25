@@ -25,6 +25,16 @@
 ## X-Curse-Project-ID: 000000
 ## X-Wago-ID: 000000
 
-Locales.lua
+Locales\enUS.lua
+Locales\deDE.lua
+Locales\frFR.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
+Locales\koKR.lua
+Locales\zhCN.lua
+Locales\zhTW.lua
+
 QuestUIReorder.lua
 Options.lua

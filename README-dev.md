@@ -12,12 +12,12 @@ BigWigs packager can find the `.toc` — see [docs/packaging.md](docs/packaging.
 
 ```
 QuestUIReorder.toc       Interface 120007, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
-Locales.lua              translations (loaded first; publishes ns.L)              │ (+ LICENSE)
+Locales/                 translations (enUS.lua loaded first; publishes ns.L)     │ (+ LICENSE)
 QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)           │
 Options.lua              the one checkbox in the native Settings panel            ┘
 .pkgmeta  .luacheckrc                                                             ┐
 scripts/  tests/  docs/  .github/                                                 │ repo-only
-README.md  README-DEV.md  CONTRIBUTING.md  SECURITY.md  CHANGELOG.md  …            ┘ (ignored)
+README.md  README-dev.md  CONTRIBUTING.md  CHANGELOG.md  CHANGELOG-dev.md  …       ┘ (ignored)
 ```
 
 ## Dev install
@@ -210,18 +210,19 @@ Threat=9, WorldQuest=10. Label/atlas mapping lives in
 `g_classificationInfoTable` in `Blizzard_FrameXMLUtil/Mainline/QuestUtils.lua`;
 section headers use `QuestUtil.GetQuestClassificationInfo(c).text` (the raw
 localized tag — *not* `GetQuestClassificationDetails`, which time-suffixes
-Repeatable), falling back to the addon's own translations in `Locales.lua`,
+Repeatable), falling back to the addon's own translations in `Locales/`,
 then to English literals.
 
 ### Localization
 
 Header resolution is three-deep: Blizzard's runtime string (always correct
 for the client locale, survives Blizzard rewording) → `ns.L` from
-`Locales.lua` → English literal in `QuestUIReorder.lua` (survives a packaging
-error that drops the file). `Locales.lua` covers all retail client locales —
-deDE, esES, esMX (identical to esES, aliased), frFR, itIT, koKR, ptBR, ruRU,
-zhCN, zhTW — keyed by `GetLocale()`; enGB and unknown locales fall through to
-the English base table.
+`Locales/` → English literal in `QuestUIReorder.lua` (survives a packaging
+error that drops the files). `Locales/` covers all retail client locales —
+deDE, esES, esMX (served by `Locales/esES.lua`, which guards both), frFR,
+itIT, koKR, ptBR, ruRU, zhCN, zhTW — each `Locales/<locale>.lua` guarded by
+`GetLocale()`; enGB, ptPT and unknown locales load only `Locales/enUS.lua`
+(the English base).
 
 Translation sourcing policy: the four classification fallbacks are *verbatim
 copies* of Blizzard's `QUEST_CLASSIFICATION_*` strings per locale
@@ -245,9 +246,10 @@ strings are maintainer-written with AI assistance and not all
 native-reviewed — CONTRIBUTING.md explicitly invites corrections.
 
 The merge logic is plain Lua and is verified headlessly (no game client):
-load `Locales.lua` once per `GetLocale()` value — all 10 translated locales,
-enUS/enGB, an unknown locale, and with `GetLocale` absent — and assert every
-key resolves to a non-empty string. Re-run after editing translations.
+load `Locales/enUS.lua` plus each per-locale overlay once per `GetLocale()`
+value — all 10 translated locales, enUS/enGB/ptPT, an unknown locale, and with
+`GetLocale` absent — and assert every key resolves to a non-empty string and
+each translated locale actually applies. Re-run after editing translations.
 
 Deliberate decisions: **Callings sort into "Other Quests"** (Blizzard floats
 them to the top) — per the original spec; and the split is
@@ -307,12 +309,14 @@ sh scripts/check.sh
 It needs only luacheck and any Lua >= 5.1 on `PATH` (no game client; e.g. the
 interpreter inside Homebrew's luacheck keg, or `luajit`).
 
-- **Locales** — committed as `tests/run.lua`: loads the real `Locales.lua`
-  once per possible `GetLocale()` value (all 10 translated locales, esMX,
-  enUS/enGB, an unknown locale, and `GetLocale` absent) and asserts every
-  base key resolves to a non-empty string, no locale introduces a stray key,
-  and `MSG_SORT_DISABLED_FMT` keeps its single `%s` and a literal `/reload`.
-  Re-run after touching `Locales.lua`.
+- **Locales** — committed as `tests/run.lua`: loads the real `Locales/` files
+  (enUS.lua, then every per-locale overlay in TOC order) once per possible
+  `GetLocale()` value (all 10 translated locales, esMX, enUS/enGB/ptPT, an
+  unknown locale, and `GetLocale` absent) and asserts every base key resolves
+  to a non-empty string, no locale introduces a stray key, each translated
+  locale actually applies its overlay (so esMX gets Spanish, not English), and
+  `MSG_SORT_DISABLED_FMT` keeps its single `%s` and a literal `/reload`.
+  Re-run after touching `Locales/`.
 
 A **toggle state-machine** harness is planned but not yet committed: stub the
 Blizzard surface Part 2 touches (tracker, manager, container, `CreateFrame`,
@@ -330,7 +334,7 @@ and the Settings panel itself — that stays on the in-game checklist below.
 ## Linting
 
 ```sh
-luacheck *.lua
+luacheck *.lua Locales/*.lua
 ```
 
 `.luacheckrc` declares the Blizzard tracker globals read-only with exactly
@@ -362,7 +366,8 @@ variable" for both.
    not a changed contract, so the client's "out of date" flag is the only
    signal that re-verification is due. (12.0.7 is imminent as of June 2026 —
    it will need this dance.)
-3. Bump `## Version:` and add a `CHANGELOG.md` entry.
+3. Bump `## Version:` and add entries to `CHANGELOG.md` (player-facing) and
+   `CHANGELOG-dev.md` (technical notes).
 
 ## What breaks us, and how it shows
 

@@ -1,0 +1,6 @@
+# In-game captures for the README and the CurseForge/Wago store listings live
+# here. README.md references screenshots/quest-ui-reorder-tracker.png — capture
+# the Objective Tracker with several quest-type sections visible (Important,
+# Legendary, Meta, Repeatable, Other Quests) and save it under that name.
+# This directory is ignored by the BigWigs packager (.pkgmeta) so it never
+# ships inside the addon zip.

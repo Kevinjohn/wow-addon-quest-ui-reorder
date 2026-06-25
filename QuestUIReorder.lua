@@ -26,9 +26,9 @@
 
 local ADDON_NAME, ns = ...
 
--- Translations live in Locales.lua (loaded first via the TOC); the `or`
--- defaults below keep the addon functional in English even if that file
--- goes missing from a package.
+-- Translations live in Locales/<locale>.lua (Locales/enUS.lua loaded first
+-- via the TOC, ahead of this file); the `or` defaults below keep the addon
+-- functional in English even if those files go missing from a package.
 local L = (ns and ns.L) or {}
 
 local function PrintMessage(text)

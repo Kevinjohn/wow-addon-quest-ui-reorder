@@ -36,11 +36,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Full history + tags so the packager can resolve @project-version@
           # and generate release metadata.
           fetch-depth: 0
+
+      - name: Trim changelog header for published notes
+        # The packager ships CHANGELOG.md verbatim as the GitHub Release body,
+        # the CurseForge changelog, and the in-zip changelog. Drop the repo-file
+        # header (the "# Changelog" title, its tagline, and the dev-notes HTML
+        # comment) so the published notes start at the first version heading and
+        # show the version list only. Keeps full history; just removes the
+        # boilerplate. Runs on the CI checkout, so the committed CHANGELOG.md
+        # keeps its header for anyone browsing the repo. The rule — "everything
+        # from the first '## ' heading onward" — is independent of the exact
+        # title/tagline wording, so edits to those can't break it.
+        run: |
+          awk '/^## / { keep = 1 } keep' CHANGELOG.md > CHANGELOG.trimmed
+          mv CHANGELOG.trimmed CHANGELOG.md
 
       - name: Package and release
         uses: BigWigsMods/packager@v2
@@ -48,8 +62,12 @@ jobs:
           # GitHub Release. The packager reads GITHUB_OAUTH; GITHUB_TOKEN is
           # injected automatically and works with the contents:write perm above.
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-          # CurseForge. Repo secret name per the publishing checklist (CF_API_TOKEN);
-          # the packager reads it from CF_API_KEY. Empty -> CurseForge upload skipped.
+          # CurseForge. packager@v2 reads the token from CF_API_KEY; CF_API_TOKEN
+          # is only the name on the (unreleased) master branch. Pass the single
+          # CF_API_TOKEN repo secret under BOTH names: it works on v2 now and
+          # survives a later packager bump that switches to CF_API_TOKEN. Empty
+          # (secret unset, or X-Curse-Project-ID missing) -> CurseForge skipped.
           CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           # Wago. Empty -> Wago upload skipped.
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}

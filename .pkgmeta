@@ -20,9 +20,12 @@ ignore:
   - scripts
   - tests
   - docs
+  - screenshots
   - README.md
-  - README-DEV.md
+  - README-dev.md
+  - CHANGELOG-dev.md
   - CONTRIBUTING.md
   - SECURITY.md
   - CODE_OF_CONDUCT.md
   - _wow-Addon-Publishing-Readiness.md
+  - .DS_Store

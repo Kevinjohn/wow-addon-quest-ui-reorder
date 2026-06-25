@@ -40,7 +40,7 @@ Placeholders used below — set these first:
 ![Interface](https://img.shields.io/badge/Interface-XXXXXX-blue)
 ![Last commit](https://img.shields.io/github/last-commit/OWNER/REPO)
 ```
-- [ ] `## Screenshots` section → `![...](docs/img/foo.png)` (keep the Interface badge
+- [ ] `## Screenshots` section → `![...](screenshots/foo.png)` (keep the Interface badge
       in step with `## Interface` in the .toc)
 - [ ] Footer: install-from-Releases line + links to CONTRIBUTING.md and LICENSE
 
@@ -213,7 +213,7 @@ jobs:
 - [ ] `git push`
 - [ ] Tag: `git tag vX.Y.Z && git push --tags`  (resolves the version badge + `@project-version@`)
 - [ ] Build the zip and attach to a GitHub Release (`gh release create vX.Y.Z .release/*.zip`)
-- [ ] Drop screenshot(s) into `docs/img/`
+- [ ] Drop screenshot(s) into `screenshots/`
 
 ---
 

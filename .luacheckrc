@@ -1,5 +1,10 @@
 std = "lua51"
+self = false
 max_line_length = false
+
+-- The headless test harness (tests/run.lua) runs outside the WoW sandbox with
+-- a different global set, and .luacheckrc is config, not addon code.
+exclude_files = { ".luacheckrc", "tests/*.lua" }
 
 read_globals = {
     -- WoW API

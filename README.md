@@ -34,8 +34,8 @@ game's own nearest-first re-sort when you change zones.
 
 ## Screenshots
 
-<!-- Drop screenshots into docs/img/ and reference them here. -->
-![Tracked quests split into sections by type](docs/img/sections.png)
+<!-- In-game captures live in screenshots/. -->
+![Tracked quests split into sections by type](screenshots/quest-ui-reorder-tracker.png)
 
 ## What it will never do
 
@@ -124,4 +124,4 @@ and unzip it into your AddOns folder (see [Installation](#installation) above fo
 the exact path). Contributions are welcome — see
 [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [MIT](LICENSE).
 
-*Developers: see [README-DEV.md](README-DEV.md).*
+*Developers: see [README-dev.md](README-dev.md).*

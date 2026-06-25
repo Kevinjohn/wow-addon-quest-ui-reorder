@@ -25,10 +25,10 @@
 ## Basic Structure
 
 - [x] Repository exists on GitHub. (`origin` → github.com/Kevinjohn/wow-addon-quest-ui-reorder)
-- [x] Repository contains addon source code. (`QuestUIReorder.lua`, `Locales.lua`, `Options.lua`)
+- [x] Repository contains addon source code. (`QuestUIReorder.lua`, `Locales/`, `Options.lua`)
 - [x] Repository contains a valid `.toc` file. (`QuestUIReorder.toc` at repo root)
 - [x] Addon loads successfully inside World of Warcraft. (verified in-game against retail **12.0.5** — see README/CHANGELOG; `.toc` now targets 12.0.7)
-- [x] No obvious build errors exist. (`scripts/check.sh`: luacheck **0 warnings / 0 errors**, **495** test checks pass)
+- [x] No obvious build errors exist. (`scripts/check.sh`: luacheck **0 warnings / 0 errors**, **505** test checks pass)
 - [x] No temporary or backup files are committed. (`git ls-files` is clean)
 
 Actual structure (flat / root layout — required by the BigWigs packager, see `docs/packaging.md`):
@@ -36,8 +36,8 @@ Actual structure (flat / root layout — required by the BigWigs packager, see `
 ```text
 wow-addon-quest-ui-reorder/
 ├── QuestUIReorder.toc
-├── QuestUIReorder.lua  Locales.lua  Options.lua
-├── README.md  README-DEV.md  CHANGELOG.md  LICENSE
+├── QuestUIReorder.lua  Locales/  Options.lua
+├── README.md  README-dev.md  CHANGELOG.md  CHANGELOG-dev.md  LICENSE
 ├── .pkgmeta
 └── .github/
     ├── workflows/release.yml      ← NEW (Phase 5)
@@ -128,7 +128,7 @@ Confirmed in this repo:
 ```text
 QuestUIReorder/
 ├── QuestUIReorder.toc      # @project-version@ → v0.5.0-alpha-2-gbda95e5, Interface 120007
-├── QuestUIReorder.lua  Locales.lua  Options.lua
+├── QuestUIReorder.lua  Locales/  Options.lua
 ├── LICENSE
 └── CHANGELOG.md            # curated (manual-changelog), not the git-log dump
 ```
@@ -163,7 +163,7 @@ Reference: https://github.com/BigWigsMods/packager/wiki/GitHub-Actions-workflow
 - [x] Licence file exists. (`LICENSE`, MIT)
 - [x] Changelog exists or release notes are generated automatically. (curated `CHANGELOG.md`, Keep a Changelog format, also fed to store release notes)
 
-Present: `README.md`, `README-DEV.md`, `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`.
+Present: `README.md`, `README-dev.md`, `LICENSE`, `CHANGELOG.md`, `CHANGELOG-dev.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`.
 
 ---
 

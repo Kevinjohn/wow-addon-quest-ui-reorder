@@ -17,8 +17,8 @@
 #         export CF_API_KEY=...        # CurseForge
 #         export WAGO_API_TOKEN=...    # Wago
 #         export GITHUB_OAUTH=...      # GitHub personal access token (for the Release)
-#   3. Run this script with no args to upload, e.g.  sh scripts/release.sh
-#      (drop the implicit -d by passing your own flags, e.g. `sh scripts/release.sh -p 0000`).
+#   3. Run with your own flags to upload (this drops the implicit -d),
+#      e.g.  sh scripts/release.sh -p 0000 -a abcd
 #
 # The packager reads the latest git tag for the version, so tag first:
 #   git tag v0.5.0 && git push --tags
