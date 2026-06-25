@@ -4,6 +4,9 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.7.0-alpha — 2026-06-26
+- First CurseForge release. Added in-game screenshots to the README; no in-game behaviour change.
+
 ## 0.6.1-alpha — 2026-06-25
 - Internal localization, packaging, and documentation cleanup; no in-game changes.
 

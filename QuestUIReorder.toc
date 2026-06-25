@@ -18,11 +18,11 @@
 ## Dependencies: Blizzard_ObjectiveTracker
 ## SavedVariables: QuestUIReorderDB
 
-# Store publishing IDs. Replace 000000 with the real IDs once the CurseForge /
-# Wago projects exist. The release workflow / packager reads these and uploads to
-# a store only when the matching repo secret (CF_API_TOKEN / WAGO_API_TOKEN) is
-# also set, so the 000000 placeholders are harmless until then.
-## X-Curse-Project-ID: 000000
+# Store publishing IDs. The release workflow / packager reads these and uploads
+# to a store only when the matching repo secret (CF_API_TOKEN / WAGO_API_TOKEN)
+# is also set. The CurseForge project is live; Wago stays a 000000 placeholder
+# (harmless) until that project exists.
+## X-Curse-Project-ID: 1588096
 ## X-Wago-ID: 000000
 
 Locales\enUS.lua

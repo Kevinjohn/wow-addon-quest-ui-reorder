@@ -35,7 +35,19 @@ game's own nearest-first re-sort when you change zones.
 ## Screenshots
 
 <!-- In-game captures live in screenshots/. -->
-![Tracked quests split into sections by type](screenshots/quest-ui-reorder-tracker.png)
+Tracked quests split into their own collapsible sections by type — Important,
+Meta, Repeatable, then Other Quests:
+
+![Tracked quests split into sections by type](screenshots/screenshot-order-separated.png)
+
+With sections turned off, the same quests collapse back into one **Quests**
+section, still sorted with the most important quest types first:
+
+![All tracked quests in a single Quests section, sorted by importance](screenshots/screenshot-order.png)
+
+The single option, under **Esc → Options → AddOns → Quest UI Reorder**:
+
+![The Split quests into sections option in the AddOns panel](screenshots/screenshot-addon-option.png)
 
 ## What it will never do
 

@@ -9,6 +9,15 @@ Newest first; follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0-alpha] — 2026-06-26
+
+### Changed
+- Set `## X-Curse-Project-ID: 1588096` in the TOC, enabling the packager's
+  CurseForge upload on tag push (the `CF_API_TOKEN` repo secret was already in
+  place). Wago stays a `000000` placeholder. Added the three in-game captures
+  under `screenshots/` to the README (separated sections, single-section
+  fallback, options panel). No player-facing code change.
+
 ## [0.6.1-alpha] — 2026-06-25
 
 ### Changed
