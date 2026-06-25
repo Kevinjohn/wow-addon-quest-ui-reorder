@@ -102,8 +102,8 @@ with the addon's own translations, built from the game's vocabulary.
 - Retail only, targeting patch **12.0.7** (built and verified in-game against
   **12.0.5**). Classic flavours are not supported (they don't have quest
   classifications).
-- **Alpha software**: it has been carefully built and reviewed, but not yet
-  battle-tested across a full patch cycle. See `CHANGELOG.md` for history.
+- Carefully built and reviewed, though not yet battle-tested across a full
+  patch cycle. See `CHANGELOG.md` for history.
 
 ## If something goes wrong
 

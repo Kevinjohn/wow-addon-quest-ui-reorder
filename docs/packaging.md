@@ -82,7 +82,7 @@ Requirements: `bash` >= 4.3 (the packager is a bash script; macOS ships 3.2, so
 latest git tag for the version, so tag first:
 
 ```sh
-git tag v0.6.0-alpha && git push --tags
+git tag v0.8.0 && git push --tags
 sh scripts/release.sh
 ```
 
@@ -103,7 +103,7 @@ is safe before the projects exist. The full enable steps live in
 `_wow-Addon-Publishing-Readiness.md` (Remaining actions). To release:
 
 ```sh
-git tag v0.6.0-alpha && git push origin v0.6.0-alpha
+git tag v0.8.0 && git push origin v0.8.0
 ```
 
 A tag-triggered run uses `release.yml` *as it exists in the tagged commit*, so
