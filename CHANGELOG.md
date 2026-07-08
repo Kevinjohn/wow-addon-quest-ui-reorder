@@ -4,6 +4,9 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.8.1 — 2026-07-08
+- Fixed the addon's name showing incorrectly on CurseForge.
+
 ## 0.8.0 — 2026-06-26
 - First release-channel build on CurseForge. Added in-game screenshots to the README; no in-game behaviour change.
 
