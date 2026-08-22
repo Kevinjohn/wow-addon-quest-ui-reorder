@@ -9,6 +9,62 @@ Newest first; follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Bumped `## Interface:` to `120100` for retail patch 12.1.0 (released
+  2026-08-11; live build 69404 as of 2026-08-22) so the addon loads without the
+  "out of date" prompt. `120100` cross-checked against warcraft.wiki.gg's
+  `Patch 12.1.0` infobox, Ketho/BlizzardInterfaceResources `live`
+  (`GetBuildInfo() => "12.1.0", "69283", "Aug 11 2026", 120100`), and the
+  xxyyzz rule (12×10000 + 1×100 + 0).
+- No code change was required. Diffed Blizzard's
+  `Interface/AddOns/Blizzard_ObjectiveTracker/` between Gethe/wow-ui-source
+  `12.0.7` (68974, `c878310`) and `12.1.0` (69404, `81d15e4`): 9 files,
+  +17/−16 lines, no files added or removed, and **every** file this addon
+  depends on is byte-identical — `Blizzard_ObjectiveTrackerManager.lua`,
+  `Blizzard_ObjectiveTrackerModule.lua`/`.xml`,
+  `Blizzard_CampaignQuestObjectiveTracker.lua`, and the
+  `QuestObjectiveTrackerMixin:BuildQuestWatchInfos` /
+  `:ShouldDisplayQuest` region of `Blizzard_QuestObjectiveTracker.lua`.
+  `BuildQuestWatchInfos` still has exactly two tree-wide references
+  (definition + the single `EnumQuestWatchData` call) and still returns
+  `{ quest = ..., index = ... }` entries; `Init` still ends in `self:UpdateAll()`
+  and is still deferred via `EventUtil.ContinueAfterAllEvents`; stock `uiOrder`s
+  are still consecutive integers with Campaign 3 / Quest 4, so the fractional
+  slotting below the catch-all still lands in a free interval.
+  `Enum.QuestClassification` is unchanged at 11 values (Important 0,
+  Legendary 1, Campaign 2, Calling 3, Meta 4, Recurring 5, Questline 6,
+  Normal 7, BonusObjective 8, Threat 9, WorldQuest 10), and the
+  `QUEST_CLASSIFICATION_*` / `TRACKER_HEADER_*` global strings plus
+  `QuestUtil.GetQuestClassificationInfo` are untouched.
+
+### Notes on 12.1 changes we deliberately do not act on
+- `Blizzard_ManagedFrameSystem` is new, and the old positioning globals
+  (`UIParentManagedFrameMixin`, `UIParent_ManageFramePositions`,
+  `UIParentRightManagedFrameTemplate`, …) are gone with no back-compat
+  aliases. `ObjectiveTrackerFrame` now inherits `RightManagedFrameTemplate`.
+  This governs where Blizzard puts the tracker frame itself, not frames
+  parented into it; the addon references none of the removed globals.
+- New `roleset` XML attribute (`Blizzard_SharedXML/UI.xsd`) feeds a
+  `C_Roleset.ApplyRolesetFilters` / `Blizzard_UIModes` visibility system.
+  `ObjectiveTrackerFrame` is tagged `roleset="objectives"`; only top-level
+  system frames are tagged, an untagged frame defaults to `roleless` and is
+  not filtered, and `AddRoleset`/`SetRolesets` are protected. Our section
+  modules are affected only as ordinary children of a hidden parent — which
+  is the correct behaviour.
+- Secret-value annotations grew tree-wide (+107 `SecretArguments`), but every
+  `C_QuestLog` / `C_QuestInfoSystem` / quest-object documentation blob is
+  byte-identical to 12.0.7. `GetQuestIDForQuestWatchIndex` and
+  `C_QuestInfoSystem.GetQuestClassification` carry
+  `SecretArguments = "AllowedWhenUntainted"`, as they already did in 12.0.7.
+- New per-file `[Bootstrap]` TOC directive for load-on-demand addons, and
+  `UIParentLoadAddOn` renamed to `LoadAddOnWithErrorHandling`. Neither applies
+  here: this addon is not load-on-demand and loads no addons itself.
+
+### Verified
+- In-game on 12.1.0: `select(4, GetBuildInfo())` returns `120100`, matching the
+  TOC; the four classification sections render above "Other Quests", sorting
+  holds, and no degradation message is printed at load.
+
 ## [0.8.0] — 2026-06-26
 
 ### Changed

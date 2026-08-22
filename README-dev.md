@@ -11,7 +11,7 @@ BigWigs packager can find the `.toc` — see [docs/packaging.md](docs/packaging.
 `.pkgmeta`'s `ignore:` list separates the shipped files from the repo-only ones.
 
 ```
-QuestUIReorder.toc       Interface 120007, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
+QuestUIReorder.toc       Interface 120100, hard dep on Blizzard_ObjectiveTracker  ┐ shipped
 Locales/                 translations (enUS.lua loaded first; publishes ns.L)     │ (+ LICENSE)
 QuestUIReorder.lua       the addon logic (exports ns.ApplySplitSetting)           │
 Options.lua              the one checkbox in the native Settings panel            ┘
@@ -364,8 +364,8 @@ variable" for both.
 2. Only then bump `## Interface:` in the TOC. **Never pre-declare an
    unreleased patch number**: the runtime guard detects a *missing* method but
    not a changed contract, so the client's "out of date" flag is the only
-   signal that re-verification is due. (12.0.7 is imminent as of June 2026 —
-   it will need this dance.)
+   signal that re-verification is due. (12.1.5 is the next one due — PTR as of
+   August 2026 — and will need this dance.)
 3. Bump `## Version:` and add entries to `CHANGELOG.md` (player-facing) and
    `CHANGELOG-dev.md` (technical notes).
 

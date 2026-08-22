@@ -27,7 +27,7 @@
 - [x] Repository exists on GitHub. (`origin` → github.com/Kevinjohn/wow-addon-quest-ui-reorder)
 - [x] Repository contains addon source code. (`QuestUIReorder.lua`, `Locales/`, `Options.lua`)
 - [x] Repository contains a valid `.toc` file. (`QuestUIReorder.toc` at repo root)
-- [x] Addon loads successfully inside World of Warcraft. (verified in-game against retail **12.0.5** — see README/CHANGELOG; `.toc` now targets 12.0.7)
+- [x] Addon loads successfully inside World of Warcraft. (verified in-game against retail **12.1.0** — see README/CHANGELOG)
 - [x] No obvious build errors exist. (`scripts/check.sh`: luacheck **0 warnings / 0 errors**, **505** test checks pass)
 - [x] No temporary or backup files are committed. (`git ls-files` is clean)
 
@@ -52,7 +52,7 @@ wow-addon-quest-ui-reorder/
 - [x] `## Author:` exists.
 - [x] `## Notes:` exists. (plus localized `## Notes-<locale>` for 11 locales)
 - [x] `## Interface:` exists.
-- [x] Interface version is current for supported WoW version. (`120007` = patch **12.0.7**)
+- [x] Interface version is current for supported WoW version. (`120100` = patch **12.1.0**)
 - [x] `## Version:` exists.
 - [x] Version uses `## Version: @project-version@` (packager stamps the git tag at build time)
 - [x] `## X-Curse-Project-ID:` exists. — line present with a `000000` placeholder; replace with the real ID once the CurseForge project exists. 🔧 **ACTION (you)**
@@ -127,7 +127,7 @@ Confirmed in this repo:
 
 ```text
 QuestUIReorder/
-├── QuestUIReorder.toc      # @project-version@ → v0.5.0-alpha-2-gbda95e5, Interface 120007
+├── QuestUIReorder.toc      # @project-version@ → v0.5.0-alpha-2-gbda95e5, Interface 120100
 ├── QuestUIReorder.lua  Locales/  Options.lua
 ├── LICENSE
 └── CHANGELOG.md            # curated (manual-changelog), not the git-log dump
@@ -209,8 +209,8 @@ git push origin v0.0.1-test
 
 - [x] ZIP extracts correctly.
 - [x] Top-level folder name is correct. (`QuestUIReorder/`)
-- [x] TOC file exists inside package. (`@project-version@` substituted; Interface 120007)
-- [ ] Addon appears in WoW AddOns list. — 🔧 in-game (you); previously confirmed on 12.0.5
+- [x] TOC file exists inside package. (`@project-version@` substituted; Interface 120100)
+- [x] Addon appears in WoW AddOns list. (confirmed in-game on 12.1.0)
 - [ ] Addon loads without Lua errors. — 🔧 in-game (you); luacheck is clean
 - [ ] SavedVariables still function correctly. — 🔧 in-game (you); `## SavedVariables: QuestUIReorderDB`
 

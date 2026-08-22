@@ -15,7 +15,7 @@ body:
     attributes:
       label: WoW version / build
       description: "Run /run print(GetBuildInfo()) in-game, or read it from the game menu."
-      placeholder: e.g. 12.0.5 (Retail)
+      placeholder: e.g. 12.1.0 (Retail)
     validations:
       required: true
   - type: input

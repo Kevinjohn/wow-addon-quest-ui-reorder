@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Kevinjohn/wow-addon-quest-ui-reorder?include_prereleases&sort=semver)](https://github.com/Kevinjohn/wow-addon-quest-ui-reorder/releases)
 [![License: MIT](https://img.shields.io/github/license/Kevinjohn/wow-addon-quest-ui-reorder)](LICENSE)
-![Interface](https://img.shields.io/badge/Interface-120007-blue)
+![Interface](https://img.shields.io/badge/Interface-120100-blue)
 ![Last commit](https://img.shields.io/github/last-commit/Kevinjohn/wow-addon-quest-ui-reorder)
 
 <!-- Keep the Interface badge above in step with `## Interface` in the .toc. -->
@@ -99,9 +99,8 @@ with the addon's own translations, built from the game's vocabulary.
 
 ## Compatibility
 
-- Retail only, targeting patch **12.0.7** (built and verified in-game against
-  **12.0.5**). Classic flavours are not supported (they don't have quest
-  classifications).
+- Retail only, built and verified in-game against patch **12.1.0**. Classic
+  flavours are not supported (they don't have quest classifications).
 - Carefully built and reviewed, though not yet battle-tested across a full
   patch cycle. See `CHANGELOG.md` for history.
 
