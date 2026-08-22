@@ -4,6 +4,10 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.8.2 — 2026-08-22
+- Updated for retail patch 12.1 — no longer shows as out of date.
+- No in-game behaviour change: nothing the addon uses changed in this patch.
+
 ## 0.8.1 — 2026-07-08
 - Fixed the addon's name showing incorrectly on CurseForge.
 
