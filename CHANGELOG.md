@@ -4,6 +4,9 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.9.2 — 2026-09-07
+- Both features are back, as two separate options you turn on yourself: "Order quests by type" and "Split quests into sections". Each one explains the patch 12.1 problem so you can decide. Nothing is on until you switch it on.
+
 ## 0.9.1 — 2026-09-07
 - The addon now turns itself off on patch 12.1 and says so once at login. A Blizzard bug freezes the whole quest tracker — every section, not just quests — as soon as any addon changes it, and no part of this addon avoids that, so sorting is off for now too. The options checkbox is still there and can force it back on if you want it, at the cost of the freeze.
 
