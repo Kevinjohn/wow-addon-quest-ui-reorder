@@ -18,6 +18,7 @@ read_globals = {
     "hooksecurefunc",
     "Mixin",
     "ORANGE_FONT_COLOR",
+    "RED_FONT_COLOR",
     -- Blizzard tracker globals: read-only, except the fields below
     "ObjectiveTrackerManager",
     "QuestObjectiveTracker",

@@ -9,6 +9,65 @@ Newest first; follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — 12.1 taint incompatibility: split default flipped to off
+- **Symptom:** on retail 12.1.0 (build 69587) the entire Objective Tracker
+  stops repainting — every module, not just Quests — until `/reload`. With
+  `scriptErrors` off (the default) nothing is shown to the player.
+- **Error:** `GetAuraDataByIndex(): Auras cannot be accessed when secret while
+  tainted by 'QuestUIReorder'`, thrown from `Blizzard_MawBuffs.lua:4`
+  (`ShouldShowMawBuffs`) via `Blizzard_ScenarioObjectiveTracker.lua:187`
+  (`ScenarioObjectiveTrackerMixin:LayoutContents`) via
+  `Blizzard_ObjectiveTrackerModule.lua:147` via
+  `Blizzard_ObjectiveTrackerContainer.lua:64`.
+- **Mechanism** (confirmed against Gethe/wow-ui-source `live`):
+  `ObjectiveTrackerContainerMixin:Update` opens by re-sorting its module list
+  when `needsSorting` is set (Container:50-55), comparing `lhs.uiOrder`.
+  `AddModule` sets `needsSorting = true` (Container:122) and we write the
+  fractional `uiOrder`s in `ActivateSplit`. Both values are addon-written and
+  therefore tainted, so the container's `Update` is tainted from its first
+  lines — before any module runs. Container:64 is the `hasDisplayPriority`
+  loop; `ScenarioObjectiveTrackerMixin.hasDisplayPriority = true`
+  (ScenarioObjectiveTracker:44), so the scenario module updates first, now
+  tainted, and its unconditional `ShouldShowMawBuffs()` call hard-errors on
+  `C_UnitAuras.GetAuraDataByIndex`. The error unwinds the whole container
+  update, so nothing repaints.
+- **Why it cannot be fixed addon-side:** `needsSorting` is only ever cleared at
+  Container:54, inside the already-tainted `Update`, so it stays a tainted
+  `false` for the rest of the session; every subsequent container update is
+  tainted from Container:50 regardless of what the addon does afterwards. Any
+  module we register necessarily carries an addon-written `uiOrder`. Part 1
+  (the `BuildQuestWatchInfos` replacement) is unaffected: it taints only the
+  quest module's own layout, which runs in the second loop (Container:74),
+  after the scenario module has already updated cleanly.
+- **Change:** `IsSplitEnabled` now defaults to off (`db.splitSections == true`)
+  and `RegisterAddOnSetting`'s default is `false`. Because
+  `Settings.RegisterAddOnSetting` writes the then-default into the saved key on
+  first registration, every existing player already has `splitSections = true`
+  stored and a default flip alone would not reach them:
+  `ResetSplitForRetail121` turns it off once, latched on a new
+  `splitResetFor121` key, and prints `MSG_SPLIT_RESET_121`. Options.lua calls
+  it before `RegisterAddOnSetting` so the checkbox binds to the migrated value;
+  `ApplySplitSetting` calls it too, as the fallback for a session where the
+  options panel could not be registered. Both are no-ops after the first.
+- **Options panel:** the checkbox tooltip now appends
+  `OPTION_SPLIT_WARNING_121`, wrapped in `RED_FONT_COLOR`, after a `|n|n`
+  break. The warning is not folded into the label — the label truncates in the
+  panel (a known constraint) and the warning must survive translation as its
+  own sentence. Both new strings are enUS-only; the other locales fall back to
+  English through the base table until a native speaker supplies them.
+- **Also hardened** (correct on its own merits, not the cause of this bug): the
+  catch-all `ShouldDisplayQuest` wrapper now `pcall`s Blizzard's filter, as the
+  section filters already did. It was the only addon call inside the layout
+  pass running unguarded, contrary to the policy stated at the top of the
+  Part 2 section.
+- **Reverting this:** Blizzard is expected to fix the unconditional aura read
+  in 12.1.5 (PTR). Once verified live, delete `ResetSplitForRetail121` and its
+  `ns` export and the Options.lua call, restore the `IsSplitEnabled` default
+  and the `RegisterAddOnSetting` default to `true`, drop
+  `OPTION_SPLIT_WARNING_121` / `MSG_SPLIT_RESET_121`, and remove the block
+  comment above `IsSplitEnabled`. The `splitResetFor121` saved key can stay;
+  it is inert.
+
 ### Changed
 - Bumped `## Interface:` to `120100` for retail patch 12.1.0 (released
   2026-08-11; live build 69404 as of 2026-08-22) so the addon loads without the

@@ -40,6 +40,13 @@ local function RegisterOptions()
     -- First ever run: the saved-variables table itself does not exist yet.
     QuestUIReorderDB = QuestUIReorderDB or {}
 
+    -- Must run before RegisterAddOnSetting: that call reads the stored value
+    -- to seed the checkbox, so migrating afterwards would leave the box shown
+    -- as checked while the split was actually off.
+    if type(ns.ResetSplitForRetail121) == "function" then
+        ns.ResetSplitForRetail121()
+    end
+
     local category = Settings.RegisterVerticalLayoutCategory("Quest UI Reorder")
 
     local setting = Settings.RegisterAddOnSetting(
@@ -49,7 +56,7 @@ local function RegisterOptions()
         QuestUIReorderDB,
         Settings.VarType.Boolean,
         L.OPTION_SPLIT_LABEL or "Split quests into sections",
-        true                                                     -- Settings.Default.True
+        false                                                    -- Settings.Default.False; see the 12.1 note in QuestUIReorder.lua
     )
     assert(setting and type(setting.SetValueChangedCallback) == "function",
         "unexpected setting object")
@@ -57,9 +64,18 @@ local function RegisterOptions()
         ns.ApplySplitSetting()
     end)
 
-    Settings.CreateCheckbox(category, setting,
-        L.OPTION_SPLIT_TOOLTIP
-            or "Show Important, Legendary, Meta, and Repeatable quests in their own sections. When unchecked, all tracked quests stay in one Quests section, still sorted by type.")
+    -- The warning is appended to the tooltip rather than folded into the
+    -- label: the label truncates in the panel, and the warning has to
+    -- survive translation as its own sentence.
+    local tooltip = L.OPTION_SPLIT_TOOLTIP
+        or "Show Important, Legendary, Meta, and Repeatable quests in their own sections. When unchecked, all tracked quests stay in one Quests section, still sorted by type."
+    local warning = L.OPTION_SPLIT_WARNING_121
+        or "Warning: because of a bug in patch 12.1, the quest tracker does not update while this is on — you have to use /reload to see changes. Blizzard is expected to fix this in 12.1.5. Best left off until then."
+    if RED_FONT_COLOR then
+        warning = RED_FONT_COLOR:WrapTextInColorCode(warning)
+    end
+
+    Settings.CreateCheckbox(category, setting, tooltip .. "|n|n" .. warning)
 
     Settings.RegisterAddOnCategory(category)
 end

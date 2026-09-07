@@ -4,6 +4,9 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.9.0 — 2026-09-07
+- Splitting quests into their own sections is now off by default: a bug in patch 12.1 stops the quest tracker updating in real time while it is on, so changes only appear after a /reload. Quests are still sorted correctly, and you can turn the sections back on in the addon's options.
+
 ## 0.8.2 — 2026-08-22
 - Updated for retail patch 12.1 — no longer shows as out of date.
 - No in-game behaviour change: nothing the addon uses changed in this patch.
