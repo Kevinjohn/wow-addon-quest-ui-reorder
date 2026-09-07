@@ -9,7 +9,39 @@ Newest first; follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed — 12.1: whole-addon stand-down (supersedes the 0.9.0 default flip)
+### Changed — 12.1: two opt-in features, no version gate (supersedes the 0.9.1 stand-down)
+- 0.9.1 disabled the addon outright on 12.1 and left `FIXED_FROM = nil`, so
+  nothing re-enabled it. That was the wrong call: an addon that cannot do the
+  thing it exists to do is worth less to a player than one that does it with a
+  documented, opt-in trade-off. Both features return, both default off.
+- The version gate (`BROKEN_FROM` / `FIXED_FROM`) is **gone**. With both
+  features opt-in there is nothing to guess about future patches: the addon does
+  nothing until a player ticks a box, and if a later patch fixes the aura read
+  the boxes simply stop having a downside. This also removes the "never comes
+  back on its own" trap 0.9.1 shipped.
+- Sorting is now gated by its own key, `enableSorting`, read once at load —
+  `Install(sortingEnabled)` only replaces `BuildQuestWatchInfos` when it is set,
+  so the tracker is untouched otherwise. It needs a /reload, since the
+  replacement happens at load. The split keeps its live toggle: Part 2's
+  machinery installs either way and only activates on `splitSections`.
+- `ResetForOptIn` replaces `ResetSplitForRetail121`, latched on `optInReset092`.
+  The two keys have carried three different meanings across 0.8.x (default on),
+  0.9.0 (default off) and 0.9.1 ("run the addon anyway"), so rather than infer
+  intent from a stored value both are reset once and the player chooses against
+  the current wording.
+- The Settings panel now registers unconditionally and carries two checkboxes,
+  each with `OPTION_121_NOTE`: a plain-English statement of the cause — the
+  tracker's leftover Shadowlands buff check, `ShouldShowMawBuffs`, called
+  unconditionally from `ScenarioObjectiveTrackerMixin:LayoutContents`, failing
+  now that buff data is a protected value. The mechanism is unchanged from the
+  0.9.1 notes below; only what the addon does about it has changed.
+- Locale churn: added `OPTION_SORT_LABEL`, `OPTION_SORT_TOOLTIP`,
+  `OPTION_121_NOTE`, `OPTION_NEEDS_RELOAD`, `MSG_OPT_IN_RESET`; removed
+  `OPTION_SPLIT_WARNING_121`, `OPTION_SPLIT_OVERRIDE_121`,
+  `MSG_DISABLED_121_TAINT`, `MSG_SPLIT_RESET_121`. All ten locales at full key
+  parity (20 keys each).
+
+### Changed — 12.1: whole-addon stand-down (0.9.1) (supersedes the 0.9.0 default flip)
 - **0.9.0's premise was wrong.** It flipped the split default to off on the
   finding that the container's `Update` was tainted by our `uiOrder` /
   `needsSorting` writes, and concluded Part 1 (sorting) was safe because the

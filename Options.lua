@@ -22,6 +22,12 @@ end
 
 local L = ns.L or {}
 
+-- Plain-English version of what CHANGELOG-dev.md records in full: on 12.1 any
+-- addon touching the tracker can stop it repainting. Both boxes carry it,
+-- because both features touch the same path.
+local DEFAULT_121_NOTE = "Note for patch 12.1: Blizzard's tracker still checks your buffs every time it redraws, left over from Shadowlands. In 12.1 they locked buff data down, so once an addon touches the tracker that check can fail and the tracker stops updating until you /reload."
+local DEFAULT_NEEDS_RELOAD = "Changing this takes effect after a /reload."
+
 if not (Settings
         and type(Settings.RegisterVerticalLayoutCategory) == "function"
         and type(Settings.RegisterAddOnSetting) == "function"
@@ -33,83 +39,69 @@ if not (Settings
     return
 end
 
+local function AddCheckbox(category, variable, key, label, tooltip, needsReload)
+    local setting = Settings.RegisterAddOnSetting(
+        category, variable, key, QuestUIReorderDB,
+        Settings.VarType.Boolean, label, false)
+    assert(setting and type(setting.SetValueChangedCallback) == "function",
+        "unexpected setting object")
+
+    local text = tooltip .. "|n|n" .. (L.OPTION_121_NOTE or DEFAULT_121_NOTE)
+    if needsReload then
+        text = text .. " " .. (L.OPTION_NEEDS_RELOAD or DEFAULT_NEEDS_RELOAD)
+    end
+    Settings.CreateCheckbox(category, setting, text)
+    return setting
+end
+
 local function RegisterOptions()
     -- First ever run: the saved-variables table itself does not exist yet.
     QuestUIReorderDB = QuestUIReorderDB or {}
 
-    -- Must run before RegisterAddOnSetting: that call reads the stored value
-    -- to seed the checkbox, so migrating afterwards would leave the box shown
-    -- as checked while the split was actually off.
-    if type(ns.ResetSplitForRetail121) == "function" then
-        ns.ResetSplitForRetail121()
+    -- Must run before the settings are registered: RegisterAddOnSetting reads
+    -- the stored value to seed each checkbox, so resetting afterwards would
+    -- leave a box shown ticked while the feature was actually off.
+    if type(ns.ResetForOptIn) == "function" then
+        ns.ResetForOptIn()
     end
 
     local category = Settings.RegisterVerticalLayoutCategory("Quest UI Reorder")
 
-    local setting = Settings.RegisterAddOnSetting(
-        category,
-        "QuestUIReorder_SplitSections",                          -- globally unique variable id
-        "splitSections",                                         -- key in QuestUIReorderDB
-        QuestUIReorderDB,
-        Settings.VarType.Boolean,
+    -- Sorting is read once at load (it replaces a Blizzard method), so it
+    -- needs a /reload. The split activates and deactivates live.
+    AddCheckbox(category,
+        "QuestUIReorder_EnableSorting", "enableSorting",
+        L.OPTION_SORT_LABEL or "Order quests by type",
+        L.OPTION_SORT_TOOLTIP
+            or "Order tracked quests by type: Important, Legendary, Meta, Repeatable, Storyline, then everything else.",
+        true)
+
+    local split = AddCheckbox(category,
+        "QuestUIReorder_SplitSections", "splitSections",
         L.OPTION_SPLIT_LABEL or "Split quests into sections",
-        false                                                    -- Settings.Default.False; see the 12.1 note in QuestUIReorder.lua
-    )
-    assert(setting and type(setting.SetValueChangedCallback) == "function",
-        "unexpected setting object")
-    setting:SetValueChangedCallback(function()
-        -- Nothing to apply while stood down; the value is still recorded, so
-        -- the choice survives to the patch that makes it mean something.
+        L.OPTION_SPLIT_TOOLTIP
+            or "Show Important, Legendary, Meta, and Repeatable quests in their own sections. When unchecked, all tracked quests stay in one Quests section.",
+        false)
+    split:SetValueChangedCallback(function()
         if type(ns.ApplySplitSetting) == "function" then
             ns.ApplySplitSetting()
         end
     end)
 
-    -- The warning is appended to the tooltip rather than folded into the
-    -- label: the label truncates in the panel, and the warning has to
-    -- survive translation as its own sentence.
-    local tooltip = L.OPTION_SPLIT_TOOLTIP
-        or "Show Important, Legendary, Meta, and Repeatable quests in their own sections. When unchecked, all tracked quests stay in one Quests section, still sorted by type."
-    local warning
-    if ns.standDown then
-        -- Reuses the chat string, which says exactly the right thing and is
-        -- already translated; it is written lowercase for the "AddonName: "
-        -- chat prefix, so lift the first letter for a sentence on its own.
-        warning = (L.MSG_DISABLED_121_TAINT
-            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
-            :gsub("^%l", string.upper)
-        warning = warning .. " " .. (L.OPTION_SPLIT_OVERRIDE_121
-            or "Ticking this runs the addon anyway, after a /reload. The quest tracker will then stop updating until you reload it again.")
-    else
-        warning = L.OPTION_SPLIT_WARNING_121
-            or "Warning: because of a bug in patch 12.1, the quest tracker does not update while this is on — you have to use /reload to see changes. Blizzard is expected to fix this in 12.1.5. Best left off until then."
-    end
-    if RED_FONT_COLOR then
-        warning = RED_FONT_COLOR:WrapTextInColorCode(warning)
-    end
-
-    Settings.CreateCheckbox(category, setting, tooltip .. "|n|n" .. warning)
-
     Settings.RegisterAddOnCategory(category)
 end
 
--- Deliberately NOT scheduled here. Both flags this depends on
--- (ns.standDown, ns.ApplySplitSetting) are decided in QuestUIReorder.lua at
--- ADDON_LOADED, and two EventUtil.ContinueOnAddOnLoaded callbacks for the same
--- addon are not guaranteed to run in registration order — relying on that left
--- the Settings panel empty, because this ran while both flags were still nil.
--- Instead QuestUIReorder.lua calls this directly once it has decided, which is
--- ordered by construction. Options.lua loads after it (TOC order), so this
--- export is always in place before that call happens.
+-- Deliberately NOT scheduled here. QuestUIReorder.lua calls this once it has
+-- read the saved variables and installed what the player opted into: two
+-- EventUtil.ContinueOnAddOnLoaded callbacks for the same addon are not
+-- guaranteed to run in registration order, and relying on that once left this
+-- panel empty. Options.lua loads after QuestUIReorder.lua (TOC order), so this
+-- export is always in place before that call.
 --
--- Register whenever there is something to show: either a live split to toggle,
--- or a stand-down to explain. An addon that silently disappears from the
--- Settings list reads as uninstalled, which is worse than one that says why it
--- is idle.
+-- The panel registers unconditionally: both features are opt-in, so the
+-- Settings entry is the only place a player can find out the addon exists and
+-- what the patch 12.1 trade-off is.
 function ns.RegisterOptions()
-    if type(ns.ApplySplitSetting) ~= "function" and not ns.standDown then
-        return
-    end
     if not pcall(RegisterOptions) then
         ns.PrintMessage(L.MSG_OPTIONS_FAILED
             or "the options checkbox could not be created (the addon keeps working with its defaults).")

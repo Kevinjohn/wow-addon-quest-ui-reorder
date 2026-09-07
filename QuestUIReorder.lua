@@ -40,42 +40,24 @@ local function PrintMessage(text)
 end
 ns.PrintMessage = PrintMessage
 
--- Patch 12.1 stand-down.
+-- Why both features ship switched off (retail 12.1).
 --
--- On 12.1 this addon cannot touch the Objective Tracker at all without
--- freezing it. Any tainted execution that reaches a MarkDirty() schedules the
--- container's next Update through DirtiableMixin's deferred dirtyCallback
--- (MixinUtil.lua:339-352, wired at ObjectiveTrackerContainer.lua:19), and that
--- deferred update then runs tainted from its very first instruction. Its first
--- loop updates modules with hasDisplayPriority, which is the scenario module;
--- its LayoutContents unconditionally calls ShouldShowMawBuffs, which reads
--- C_UnitAuras.GetAuraDataByIndex, which hard-errors under taint in 12.1. The
--- error unwinds the whole container update, so nothing in the tracker repaints
--- until /reload.
+-- Blizzard's tracker still runs a leftover bit of Shadowlands code that checks
+-- the player's buffs every time it redraws (ShouldShowMawBuffs, called
+-- unconditionally from ScenarioObjectiveTrackerMixin:LayoutContents). In 12.1
+-- buff data became a protected "secret" value, so that check throws instead of
+-- returning as soon as an addon has touched the code path. The throw unwinds
+-- the container's whole update and the tracker stops repainting until /reload.
 --
--- That laundering step is why no part of this addon is safe here, not just the
--- section split: it does not matter that the sort hook runs after the scenario
--- module within a pass, because it is the *next* pass that is poisoned. 0.9.0
--- shipped with the split off on the belief that sorting alone was fine; it is
--- not, and this stands the whole addon down instead.
---
--- BROKEN_FROM is the first interface version that hard-errors.
--- FIXED_FROM stays nil until a build is verified fixed in game — set it to that
--- build's interface version and the addon comes back on its own from there.
--- Do not set it speculatively: guessing wrong re-breaks every player's tracker.
-local BROKEN_FROM = 120100 -- retail 12.1.0
-local FIXED_FROM = nil
+-- Anything this addon does to the tracker touches that path, sorting included,
+-- so neither feature can be made safe from here. They are therefore opt-in:
+-- nothing is installed until the player ticks a box, and each box says plainly
+-- what the trade is. See CHANGELOG-dev.md for the full mechanism.
 
-local interfaceVersion = GetBuildInfo and select(4, GetBuildInfo())
-local standDownApplies = type(interfaceVersion) == "number"
-    and interfaceVersion >= BROKEN_FROM
-    and (FIXED_FROM == nil or interfaceVersion < FIXED_FROM)
-
--- Everything the addon does to the tracker lives in here so that not one
--- line of it is installed until the stand-down decision below has been made.
--- Installing and then no-opping would not help: calling through any
--- addon-defined replacement taints the pass regardless of what it does.
-local function Install()
+-- Nothing here is installed until the player has opted in. Installing and then
+-- no-opping would not help: calling through any addon-defined replacement
+-- touches the path regardless of what the body does.
+local function Install(sortingEnabled)
     local tracker = QuestObjectiveTracker
     local classifications = Enum and Enum.QuestClassification
 
@@ -158,7 +140,10 @@ local function Install()
         PrintMessage(fmt:format(reason))
     end
 
-    function tracker:BuildQuestWatchInfos()
+    -- Only replace Blizzard's builder when the player has asked for sorting.
+    -- This is read once, at load, so changing it needs a /reload.
+    if sortingEnabled then
+    tracker.BuildQuestWatchInfos = function(self)
         -- Calling through this replacement taints the rest of the layout pass, so
         -- Blizzard's own builder runs protected too; if it throws here, restore it
         -- so later layouts run it on a clean path.
@@ -185,6 +170,7 @@ local function Install()
             Disable(L.MSG_SORT_REPEATED or "quest sorting failed repeatedly")
         end
         return infos
+    end
     end
 
     ---------------------------------------------------------------------------
@@ -292,28 +278,11 @@ local function Install()
     local splitActive = false -- sections registered and catch-all narrowed right now
     local splitFailed = false -- latched: no further attempts this session
 
-    -- The player's one option (see Options.lua): split on or off. Default is
-    -- OFF as of 0.9.0 — see the 12.1 note below. Read straight from the saved
-    -- variable so the setting is still honoured if the options panel could not
-    -- be registered; an absent or unreadable variable means off.
-    --
-    -- WHY THE DEFAULT FLIPPED (retail 12.1.0, build 69587):
-    -- Registering a module with the tracker's container sets the container's
-    -- `needsSorting` flag and gives the module a `uiOrder`. Both values are
-    -- written by this addon, so both are tainted, and
-    -- ObjectiveTrackerContainerMixin:Update reads them in its first five lines
-    -- to re-sort the module list. That taints the whole update, including the
-    -- scenario module, which has hasDisplayPriority and so runs first. Its
-    -- LayoutContents calls ShouldShowMawBuffs() unconditionally, which calls
-    -- C_UnitAuras.GetAuraDataByIndex — an aura read that hard-errors under
-    -- taint in 12.1. The error unwinds the entire container update, so nothing
-    -- in the tracker repaints until /reload.
-    --
-    -- Nothing in this addon can avoid it: `needsSorting` stays tainted for the
-    -- rest of the session once we register, and the only code that clears it
-    -- runs inside the already-tainted update. Blizzard is expected to fix the
-    -- unconditional aura read in 12.1.5 (on the PTR); when that lands and is
-    -- verified, the default can go back to on and this comment can go.
+    -- Opt-in, like sorting (see the note at the top of this file for why).
+    -- Read straight from the saved variable so the setting is honoured even if
+    -- the options panel could not be registered; absent or unreadable is off.
+    -- Unlike sorting, this one still toggles live: the machinery below is
+    -- installed either way and only activates when the box is ticked.
     local function IsSplitEnabled()
         local db = QuestUIReorderDB
         if type(db) ~= "table" then
@@ -516,49 +485,37 @@ end
 -- The override is the existing checkbox. On a stood-down client, ticking it
 -- means "run anyway", and it takes a /reload: by the time the box is ticked
 -- the load-time decision has already been made.
--- Everyone who has ever run an earlier version has `splitSections = true`
--- written to their saved variables — Settings.RegisterAddOnSetting writes the
--- then-default into the key on first registration — so flipping the default
--- alone would leave every existing player with the frozen tracker described
--- above. Turn it off once, and record that we did, so a player who turns it
--- back on deliberately keeps their choice. Delete this whole block once the
--- 12.1.5 fix is verified and the default goes back to on.
-local function ResetSplitForRetail121()
+-- Both features are opt-in as of 0.9.2, and the keys that carry them have had
+-- three different meanings across 0.8.x, 0.9.0 and 0.9.1 (default-on, then
+-- default-off, then "run the addon anyway"). Rather than guess what a stored
+-- value was meant to say, reset both once and let the player choose against
+-- the current wording. Latched on its own key so it happens exactly once.
+local function ResetForOptIn()
     local db = QuestUIReorderDB
-    if type(db) ~= "table" or db.splitResetFor121 then
+    if type(db) ~= "table" or db.optInReset092 then
         return
     end
-    db.splitResetFor121 = true
-    if db.splitSections == true then
-        db.splitSections = false
-        PrintMessage(L.MSG_SPLIT_RESET_121
-            or "quest sections have been turned off: a bug in patch 12.1 stopped the quest tracker updating while they were on. Sorting still works. You can turn them back on in the addon's options.")
+    db.optInReset092 = true
+    local hadEither = db.splitSections == true or db.enableSorting == true
+    db.splitSections = false
+    db.enableSorting = false
+    if hadEither then
+        PrintMessage(L.MSG_OPT_IN_RESET
+            or "both features are now off until you turn them on: see this addon's options for what each one does on patch 12.1.")
     end
 end
 
-ns.ResetSplitForRetail121 = ResetSplitForRetail121
+ns.ResetForOptIn = ResetForOptIn
 
 local function DecideAndInstall()
-    -- Before reading the override: a player who has never been migrated still
-    -- has splitSections = true from the old default, which must not be
-    -- mistaken for a deliberate "run anyway".
-    ResetSplitForRetail121()
+    -- Runs before the settings are read: the stored values predate the current
+    -- meaning of these keys, so they are reset once first.
+    ResetForOptIn()
     local db = QuestUIReorderDB
-    local override = type(db) == "table" and db.splitSections == true
-    if standDownApplies and not override then
-        -- Stand down, but stay visible: Options.lua still registers the
-        -- category so the addon does not look uninstalled, and the checkbox
-        -- stays live so the player can override this.
-        ns.standDown = true
-        PrintMessage(L.MSG_DISABLED_121_TAINT
-            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
-    else
-        ns.overrodeStandDown = standDownApplies and override
-        Install()
-    end
-    -- Called here, not scheduled by Options.lua itself: the flags above are what
-    -- it keys off, and callback order between two ContinueOnAddOnLoaded
-    -- registrations is not guaranteed. This ordering is.
+    local sortingEnabled = type(db) == "table" and db.enableSorting == true
+    Install(sortingEnabled)
+    -- Called here, not scheduled by Options.lua itself: callback order between
+    -- two ContinueOnAddOnLoaded registrations is not guaranteed. This is.
     if type(ns.RegisterOptions) == "function" then
         ns.RegisterOptions()
     end
@@ -567,14 +524,11 @@ end
 if EventUtil and type(EventUtil.ContinueOnAddOnLoaded) == "function" then
     EventUtil.ContinueOnAddOnLoaded(ADDON_NAME, DecideAndInstall)
 else
-    -- No EventUtil: the saved variable cannot be read safely, so honour the
-    -- stand-down and skip the override rather than risk installing on a
-    -- client where this freezes the tracker.
-    if not standDownApplies then
-        Install()
-    else
-        ns.standDown = true
-        PrintMessage(L.MSG_DISABLED_121_TAINT
-            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
+    -- No EventUtil means the saved variables cannot be read safely; treat that
+    -- as "not opted in" rather than installing something the player did not ask
+    -- for on a client where it can freeze the tracker.
+    Install(false)
+    if type(ns.RegisterOptions) == "function" then
+        ns.RegisterOptions()
     end
 end
