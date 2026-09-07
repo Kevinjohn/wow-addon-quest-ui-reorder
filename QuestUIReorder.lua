@@ -256,12 +256,34 @@ local splitBuilt = false  -- sections created and classifications claimed (once)
 local splitActive = false -- sections registered and catch-all narrowed right now
 local splitFailed = false -- latched: no further attempts this session
 
--- The player's one option (see Options.lua): split on (the default) or
--- off. Read straight from the saved variable, defaulting to on, so the
--- split still works even if the options panel could not be registered.
+-- The player's one option (see Options.lua): split on or off. Default is
+-- OFF as of 0.9.0 — see the 12.1 note below. Read straight from the saved
+-- variable so the setting is still honoured if the options panel could not
+-- be registered; an absent or unreadable variable means off.
+--
+-- WHY THE DEFAULT FLIPPED (retail 12.1.0, build 69587):
+-- Registering a module with the tracker's container sets the container's
+-- `needsSorting` flag and gives the module a `uiOrder`. Both values are
+-- written by this addon, so both are tainted, and
+-- ObjectiveTrackerContainerMixin:Update reads them in its first five lines
+-- to re-sort the module list. That taints the whole update, including the
+-- scenario module, which has hasDisplayPriority and so runs first. Its
+-- LayoutContents calls ShouldShowMawBuffs() unconditionally, which calls
+-- C_UnitAuras.GetAuraDataByIndex — an aura read that hard-errors under
+-- taint in 12.1. The error unwinds the entire container update, so nothing
+-- in the tracker repaints until /reload.
+--
+-- Nothing in this addon can avoid it: `needsSorting` stays tainted for the
+-- rest of the session once we register, and the only code that clears it
+-- runs inside the already-tainted update. Blizzard is expected to fix the
+-- unconditional aura read in 12.1.5 (on the PTR); when that lands and is
+-- verified, the default can go back to on and this comment can go.
 local function IsSplitEnabled()
     local db = QuestUIReorderDB
-    return type(db) ~= "table" or db.splitSections ~= false
+    if type(db) ~= "table" then
+        return false
+    end
+    return db.splitSections == true
 end
 
 local function RemoveSections()
@@ -300,7 +322,12 @@ local function ApplyCatchAll()
         stockShouldDisplay = tracker.ShouldDisplayQuest
         stockHeaderText = tracker.headerText
         narrowedShouldDisplay = function(self, quest)
-            if not stockShouldDisplay(self, quest) then
+            -- Guarded for the same reason the section filters are: this
+            -- closure is addon-created, so Blizzard's own filter runs
+            -- tainted inside it, and an error here would abort the whole
+            -- tracker layout pass rather than cost one quest one pass.
+            local ok, stockWants = pcall(stockShouldDisplay, self, quest)
+            if not (ok and stockWants == true) then
                 return false
             end
             return not claimedClassifications[GetClassification(quest)]
@@ -421,10 +448,36 @@ end
 -- Called below whenever the tracker updates, and by Options.lua when the
 -- player toggles the checkbox. Activation self-defers until the tracker
 -- is ready; deactivation takes effect immediately.
+-- Everyone who has ever run an earlier version has `splitSections = true`
+-- written to their saved variables — Settings.RegisterAddOnSetting writes the
+-- then-default into the key on first registration — so flipping the default
+-- alone would leave every existing player with the frozen tracker described
+-- above. Turn it off once, and record that we did, so a player who turns it
+-- back on deliberately keeps their choice. Delete this whole block once the
+-- 12.1.5 fix is verified and the default goes back to on.
+local function ResetSplitForRetail121()
+    local db = QuestUIReorderDB
+    if type(db) ~= "table" or db.splitResetFor121 then
+        return
+    end
+    db.splitResetFor121 = true
+    if db.splitSections == true then
+        db.splitSections = false
+        PrintMessage(L.MSG_SPLIT_RESET_121
+            or "quest sections have been turned off: a bug in patch 12.1 stopped the quest tracker updating while they were on. Sorting still works. You can turn them back on in the addon's options.")
+    end
+end
+
+ns.ResetSplitForRetail121 = ResetSplitForRetail121
+
 local function ApplySplitSetting()
     if splitFailed then
         return
     end
+    -- Options.lua runs this first, at ADDON_LOADED, so the checkbox binds to
+    -- the migrated value. This call is the fallback for a session where the
+    -- options panel could not be registered; the flag makes it a no-op after.
+    ResetSplitForRetail121()
     if IsSplitEnabled() then
         ActivateSplit()
     else
