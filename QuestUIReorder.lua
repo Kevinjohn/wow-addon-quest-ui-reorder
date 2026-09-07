@@ -40,414 +40,482 @@ local function PrintMessage(text)
 end
 ns.PrintMessage = PrintMessage
 
-local tracker = QuestObjectiveTracker
-local classifications = Enum and Enum.QuestClassification
-
--- Every external dependency is checked before it is used anywhere, so a
--- future client change degrades to this one chat line, not a load error.
-if not (tracker and tracker.BuildQuestWatchInfos
-        and classifications
-        and C_QuestLog and C_QuestLog.GetQuestWatchType
-        and C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification) then
-    PrintMessage(L.MSG_ADDON_DISABLED
-        or "the Blizzard quest tracker has changed; the addon is disabled.")
-    return
-end
-
----------------------------------------------------------------------------
--- Part 1: sorting
----------------------------------------------------------------------------
--- Once the Part 2 split is live the four claimed classifications never
--- reach this module, so in practice this orders the catch-all section
--- (Storyline above the rest). It is also the complete fallback: if the
--- split cannot be set up, this alone still delivers one fully sorted
--- Quests section.
-
--- Highest priority first. A classification name missing from a future
--- client is skipped, so its quests join the "everything else" group
--- instead of erroring at load.
-local PRIORITY_NAMES = {
-    "Important",
-    "Legendary",
-    "Meta",
-    "Recurring", -- tagged "Repeatable" in-game
-    "Questline", -- tagged "Storyline"; "Local Story" on the world map
-}
-local CLASSIFICATION_PRIORITY = {}
-for i, name in ipairs(PRIORITY_NAMES) do
-    if classifications[name] ~= nil then
-        CLASSIFICATION_PRIORITY[classifications[name]] = i
-    end
-end
-local OTHER_PRIORITY = #PRIORITY_NAMES + 1
-
-local function CompareOrder(a, b)
-    return a.qurOrder < b.qurOrder
-end
-
--- Stamps each entry with one combined key (classification priority, then
--- incoming position) and sorts in place. Every key is distinct, so Lua's
--- unstable table.sort still produces a stable result: within a group,
--- Blizzard's own order (proximity re-sort on zone change, etc.) is kept.
+-- Patch 12.1 stand-down.
 --
--- Never filters: if an entry fails the watch-list re-check, or its
--- classification has not streamed in yet (fresh login, loading screen), the
--- whole list is returned untouched in Blizzard's order and a later pass
--- sorts it once the data is consistent.
-local function SortWatchInfos(infos)
-    local stride = #infos + 1
-    for index, info in ipairs(infos) do
-        local questID = info.quest:GetID()
-        if C_QuestLog.GetQuestWatchType(questID) == nil then
-            return infos
-        end
-        local classification = C_QuestInfoSystem.GetQuestClassification(questID)
-        if classification == nil then
-            return infos
-        end
-        info.qurOrder = (CLASSIFICATION_PRIORITY[classification] or OTHER_PRIORITY) * stride + index
+-- On 12.1 this addon cannot touch the Objective Tracker at all without
+-- freezing it. Any tainted execution that reaches a MarkDirty() schedules the
+-- container's next Update through DirtiableMixin's deferred dirtyCallback
+-- (MixinUtil.lua:339-352, wired at ObjectiveTrackerContainer.lua:19), and that
+-- deferred update then runs tainted from its very first instruction. Its first
+-- loop updates modules with hasDisplayPriority, which is the scenario module;
+-- its LayoutContents unconditionally calls ShouldShowMawBuffs, which reads
+-- C_UnitAuras.GetAuraDataByIndex, which hard-errors under taint in 12.1. The
+-- error unwinds the whole container update, so nothing in the tracker repaints
+-- until /reload.
+--
+-- That laundering step is why no part of this addon is safe here, not just the
+-- section split: it does not matter that the sort hook runs after the scenario
+-- module within a pass, because it is the *next* pass that is poisoned. 0.9.0
+-- shipped with the split off on the belief that sorting alone was fine; it is
+-- not, and this stands the whole addon down instead.
+--
+-- BROKEN_FROM is the first interface version that hard-errors.
+-- FIXED_FROM stays nil until a build is verified fixed in game — set it to that
+-- build's interface version and the addon comes back on its own from there.
+-- Do not set it speculatively: guessing wrong re-breaks every player's tracker.
+local BROKEN_FROM = 120100 -- retail 12.1.0
+local FIXED_FROM = nil
+
+local interfaceVersion = GetBuildInfo and select(4, GetBuildInfo())
+local standDownApplies = type(interfaceVersion) == "number"
+    and interfaceVersion >= BROKEN_FROM
+    and (FIXED_FROM == nil or interfaceVersion < FIXED_FROM)
+
+-- Everything the addon does to the tracker lives in here so that not one
+-- line of it is installed until the stand-down decision below has been made.
+-- Installing and then no-opping would not help: calling through any
+-- addon-defined replacement taints the pass regardless of what it does.
+local function Install()
+    local tracker = QuestObjectiveTracker
+    local classifications = Enum and Enum.QuestClassification
+
+    -- Every external dependency is checked before it is used anywhere, so a
+    -- future client change degrades to this one chat line, not a load error.
+    if not (tracker and tracker.BuildQuestWatchInfos
+            and classifications
+            and C_QuestLog and C_QuestLog.GetQuestWatchType
+            and C_QuestInfoSystem and C_QuestInfoSystem.GetQuestClassification) then
+        PrintMessage(L.MSG_ADDON_DISABLED
+            or "the Blizzard quest tracker has changed; the addon is disabled.")
+        return
     end
-    table.sort(infos, CompareOrder)
-    return infos
-end
 
-local origBuildQuestWatchInfos = tracker.BuildQuestWatchInfos
-local FAILURE_LIMIT = 10
-local consecutiveFailures = 0
+    ---------------------------------------------------------------------------
+    -- Part 1: sorting
+    ---------------------------------------------------------------------------
+    -- Once the Part 2 split is live the four claimed classifications never
+    -- reach this module, so in practice this orders the catch-all section
+    -- (Storyline above the rest). It is also the complete fallback: if the
+    -- split cannot be set up, this alone still delivers one fully sorted
+    -- Quests section.
 
-local function Disable(reason)
-    tracker.BuildQuestWatchInfos = origBuildQuestWatchInfos
-    local fmt = L.MSG_SORT_DISABLED_FMT
-        or "%s — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry."
-    PrintMessage(fmt:format(reason))
-end
-
-function tracker:BuildQuestWatchInfos()
-    -- Calling through this replacement taints the rest of the layout pass, so
-    -- Blizzard's own builder runs protected too; if it throws here, restore it
-    -- so later layouts run it on a clean path.
-    local ok, infos = pcall(origBuildQuestWatchInfos, self)
-    if not ok then
-        Disable(L.MSG_SORT_ERROR_BUILDER
-            or "the Blizzard quest tracker errored inside the sorting hook")
-        return {}
+    -- Highest priority first. A classification name missing from a future
+    -- client is skipped, so its quests join the "everything else" group
+    -- instead of erroring at load.
+    local PRIORITY_NAMES = {
+        "Important",
+        "Legendary",
+        "Meta",
+        "Recurring", -- tagged "Repeatable" in-game
+        "Questline", -- tagged "Storyline"; "Local Story" on the world map
+    }
+    local CLASSIFICATION_PRIORITY = {}
+    for i, name in ipairs(PRIORITY_NAMES) do
+        if classifications[name] ~= nil then
+            CLASSIFICATION_PRIORITY[classifications[name]] = i
+        end
     end
-    if type(infos) ~= "table" then
-        Disable(L.MSG_SORT_CHANGED
-            or "the Blizzard quest tracker changed in an unexpected way")
+    local OTHER_PRIORITY = #PRIORITY_NAMES + 1
+
+    local function CompareOrder(a, b)
+        return a.qurOrder < b.qurOrder
+    end
+
+    -- Stamps each entry with one combined key (classification priority, then
+    -- incoming position) and sorts in place. Every key is distinct, so Lua's
+    -- unstable table.sort still produces a stable result: within a group,
+    -- Blizzard's own order (proximity re-sort on zone change, etc.) is kept.
+    --
+    -- Never filters: if an entry fails the watch-list re-check, or its
+    -- classification has not streamed in yet (fresh login, loading screen), the
+    -- whole list is returned untouched in Blizzard's order and a later pass
+    -- sorts it once the data is consistent.
+    local function SortWatchInfos(infos)
+        local stride = #infos + 1
+        for index, info in ipairs(infos) do
+            local questID = info.quest:GetID()
+            if C_QuestLog.GetQuestWatchType(questID) == nil then
+                return infos
+            end
+            local classification = C_QuestInfoSystem.GetQuestClassification(questID)
+            if classification == nil then
+                return infos
+            end
+            info.qurOrder = (CLASSIFICATION_PRIORITY[classification] or OTHER_PRIORITY) * stride + index
+        end
+        table.sort(infos, CompareOrder)
         return infos
     end
 
-    local sortedOk, sorted = pcall(SortWatchInfos, infos)
-    if sortedOk then
-        consecutiveFailures = 0
-        return sorted
+    local origBuildQuestWatchInfos = tracker.BuildQuestWatchInfos
+    local FAILURE_LIMIT = 10
+    local consecutiveFailures = 0
+
+    local function Disable(reason)
+        tracker.BuildQuestWatchInfos = origBuildQuestWatchInfos
+        local fmt = L.MSG_SORT_DISABLED_FMT
+            or "%s — quest sorting is now off and the default order is in effect. Reload the UI (/reload) to retry."
+        PrintMessage(fmt:format(reason))
     end
 
-    consecutiveFailures = consecutiveFailures + 1
-    if consecutiveFailures >= FAILURE_LIMIT then
-        Disable(L.MSG_SORT_REPEATED or "quest sorting failed repeatedly")
-    end
-    return infos
-end
-
----------------------------------------------------------------------------
--- Part 2: classification sections
----------------------------------------------------------------------------
-
--- The split needs more of the tracker's machinery than the sort does; if
--- any of it has changed, Part 1 alone still provides the full sorted list.
-local manager = ObjectiveTrackerManager
-local questMixin = QuestObjectiveTrackerMixin
-if not (manager
-        and type(manager.UpdateAll) == "function"
-        and type(manager.SetModuleContainer) == "function"
-        and type(manager.GetContainerForModule) == "function"
-        and type(questMixin) == "table"
-        and type(questMixin.ShouldDisplayQuest) == "function"
-        and tracker.ShouldDisplayQuest and tracker.SetHeader
-        and tracker.MarkDirty
-        and CreateFrame and Mixin and hooksecurefunc) then
-    PrintMessage(L.MSG_SECTIONS_DISABLED
-        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
-    return
-end
-
--- One entry per new section, in on-screen order, slotted directly above
--- the catch-all. A classification missing from a future client's enum is
--- skipped; its quests stay in the catch-all. Headers use Blizzard's
--- localized quest-type names when available, then the addon's own
--- translations, then English.
-local SECTIONS = {
-    { name = "Important", fallbackHeader = L.Important or "Important" },
-    { name = "Legendary", fallbackHeader = L.Legendary or "Legendary" },
-    { name = "Meta",      fallbackHeader = L.Meta or "Meta" },
-    { name = "Recurring", fallbackHeader = L.Recurring or "Repeatable" },
-}
-local OTHER_HEADER = L.OTHER_QUESTS or "Other Quests"
-
--- The stock quest module's event list minus QUEST_AUTOCOMPLETE: auto-quest
--- popup state is global and the stock module keeps maintaining it; the new
--- sections only need to know when to redraw. Popups, like quests, render
--- in whichever section's display filter claims them.
-local SECTION_EVENTS = {
-    "QUEST_LOG_UPDATE",
-    "QUEST_WATCH_LIST_CHANGED",
-    "SUPER_TRACKING_CHANGED",
-    "QUEST_TURNED_IN",
-    "QUEST_POI_UPDATE",
-    "SUPER_TRACKING_PATH_UPDATED",
-}
-
--- Display filters run inside Blizzard's layout pass, where an uncaught
--- error would abort the whole tracker update, so every lookup the addon
--- adds there is guarded. A failed classification lookup reports nil: the
--- quest is claimed by no new section and lands in the catch-all — shown
--- in the wrong group for a pass, never dropped.
-local function CallGetQuestClassification(quest)
-    return quest:GetQuestClassification()
-end
-
-local function GetClassification(quest)
-    local ok, classification = pcall(CallGetQuestClassification, quest)
-    if ok then
-        return classification
-    end
-    return nil
-end
-
--- Blizzard's own filter (no tasks, bounties, disabled or campaign quests)
--- decides what belongs to the quest tracker at all; each section then
--- claims its classification's slice of that, keeping the sections an
--- exact partition of what the stock module would have shown.
-local stockShouldDisplayQuest = questMixin.ShouldDisplayQuest
-local function MakeSectionFilter(classification)
-    return function(module, quest)
-        local ok, stockWants = pcall(stockShouldDisplayQuest, module, quest)
-        return ok and stockWants == true
-            and GetClassification(quest) == classification
-    end
-end
-
-local function CreateSection(section, classification)
-    local module = CreateFrame("Frame", "QuestUIReorder" .. section.name .. "Tracker",
-        nil, "ObjectiveTrackerModuleTemplate")
-    Mixin(module, questMixin)
-    -- The template binds the OnEvent script before the quest mixin is
-    -- copied onto the frame; rebinding guarantees the quest handler
-    -- receives events regardless of how method-named scripts resolve.
-    module:SetScript("OnEvent", module.OnEvent)
-
-    local info = QuestUtil and QuestUtil.GetQuestClassificationInfo
-        and QuestUtil.GetQuestClassificationInfo(classification)
-    local headerText = (info and info.text) or section.fallbackHeader
-    module.headerText = headerText
-    module:SetHeader(headerText)
-
-    module.events = SECTION_EVENTS -- read once, when the manager registers the module
-    module.qurClassification = classification
-    module.ShouldDisplayQuest = MakeSectionFilter(classification)
-    return module
-end
-
-local sectionModules = {}
-local claimedClassifications = {}
-local splitBuilt = false  -- sections created and classifications claimed (once)
-local splitActive = false -- sections registered and catch-all narrowed right now
-local splitFailed = false -- latched: no further attempts this session
-
--- The player's one option (see Options.lua): split on or off. Default is
--- OFF as of 0.9.0 — see the 12.1 note below. Read straight from the saved
--- variable so the setting is still honoured if the options panel could not
--- be registered; an absent or unreadable variable means off.
---
--- WHY THE DEFAULT FLIPPED (retail 12.1.0, build 69587):
--- Registering a module with the tracker's container sets the container's
--- `needsSorting` flag and gives the module a `uiOrder`. Both values are
--- written by this addon, so both are tainted, and
--- ObjectiveTrackerContainerMixin:Update reads them in its first five lines
--- to re-sort the module list. That taints the whole update, including the
--- scenario module, which has hasDisplayPriority and so runs first. Its
--- LayoutContents calls ShouldShowMawBuffs() unconditionally, which calls
--- C_UnitAuras.GetAuraDataByIndex — an aura read that hard-errors under
--- taint in 12.1. The error unwinds the entire container update, so nothing
--- in the tracker repaints until /reload.
---
--- Nothing in this addon can avoid it: `needsSorting` stays tainted for the
--- rest of the session once we register, and the only code that clears it
--- runs inside the already-tainted update. Blizzard is expected to fix the
--- unconditional aura read in 12.1.5 (on the PTR); when that lands and is
--- verified, the default can go back to on and this comment can go.
-local function IsSplitEnabled()
-    local db = QuestUIReorderDB
-    if type(db) ~= "table" then
-        return false
-    end
-    return db.splitSections == true
-end
-
-local function RemoveSections()
-    for _, module in ipairs(sectionModules) do
-        local container = manager:GetContainerForModule(module)
-        if container and type(container.RemoveModule) == "function" then
-            container:RemoveModule(module) -- also marks the container dirty
+    function tracker:BuildQuestWatchInfos()
+        -- Calling through this replacement taints the rest of the layout pass, so
+        -- Blizzard's own builder runs protected too; if it throws here, restore it
+        -- so later layouts run it on a clean path.
+        local ok, infos = pcall(origBuildQuestWatchInfos, self)
+        if not ok then
+            Disable(L.MSG_SORT_ERROR_BUILDER
+                or "the Blizzard quest tracker errored inside the sorting hook")
+            return {}
         end
-        -- A removed module is never laid out again, so stock code can no
-        -- longer hide it; do that here or it would linger with stale
-        -- content. Events stay registered: re-adding the module skips
-        -- registration (the mixin's one-time init flag), and a MarkDirty
-        -- from an unlisted module is ignored.
-        module:Hide()
-    end
-end
-
-local function FailSplit()
-    RemoveSections()
-    for _, module in ipairs(sectionModules) do
-        module:UnregisterAllEvents()
-    end
-    splitFailed = true
-    PrintMessage(L.MSG_SECTIONS_DISABLED
-        or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
-end
-
--- The catch-all switch is built once and re-applied/restored on toggle,
--- so repeated toggling can never stack wrappers around Blizzard's filter.
-local stockShouldDisplay = nil
-local stockHeaderText = nil
-local narrowedShouldDisplay = nil
-
-local function ApplyCatchAll()
-    if not narrowedShouldDisplay then
-        stockShouldDisplay = tracker.ShouldDisplayQuest
-        stockHeaderText = tracker.headerText
-        narrowedShouldDisplay = function(self, quest)
-            -- Guarded for the same reason the section filters are: this
-            -- closure is addon-created, so Blizzard's own filter runs
-            -- tainted inside it, and an error here would abort the whole
-            -- tracker layout pass rather than cost one quest one pass.
-            local ok, stockWants = pcall(stockShouldDisplay, self, quest)
-            if not (ok and stockWants == true) then
-                return false
-            end
-            return not claimedClassifications[GetClassification(quest)]
+        if type(infos) ~= "table" then
+            Disable(L.MSG_SORT_CHANGED
+                or "the Blizzard quest tracker changed in an unexpected way")
+            return infos
         end
-    end
-    tracker.ShouldDisplayQuest = narrowedShouldDisplay
-    tracker.headerText = OTHER_HEADER
-    tracker:SetHeader(OTHER_HEADER)
-end
 
-local function RestoreCatchAll()
-    tracker.ShouldDisplayQuest = stockShouldDisplay
-    tracker.headerText = stockHeaderText
-    tracker:SetHeader(stockHeaderText)
-end
-
-local function ActivateSplit()
-    -- The container is resolved through the stock quest module rather than
-    -- assumed, so the new sections always live wherever Blizzard put the
-    -- section they split.
-    local container = manager:GetContainerForModule(tracker)
-    local questOrder = tracker.uiOrder
-
-    if splitActive then
-        -- Self-heal: if something rebuilt the module list (the manager's
-        -- RemoveAllModules ends in another UpdateAll), put the sections
-        -- back beside the stock quest module — the narrowed catch-all
-        -- filter must never run without them.
-        if container then
-            for _, module in ipairs(sectionModules) do
-                if manager:GetContainerForModule(module) ~= container then
-                    pcall(manager.SetModuleContainer, manager, module, container)
-                end
-            end
+        local sortedOk, sorted = pcall(SortWatchInfos, infos)
+        if sortedOk then
+            consecutiveFailures = 0
+            return sorted
         end
+
+        consecutiveFailures = consecutiveFailures + 1
+        if consecutiveFailures >= FAILURE_LIMIT then
+            Disable(L.MSG_SORT_REPEATED or "quest sorting failed repeatedly")
+        end
+        return infos
+    end
+
+    ---------------------------------------------------------------------------
+    -- Part 2: classification sections
+    ---------------------------------------------------------------------------
+
+    -- The split needs more of the tracker's machinery than the sort does; if
+    -- any of it has changed, Part 1 alone still provides the full sorted list.
+    local manager = ObjectiveTrackerManager
+    local questMixin = QuestObjectiveTrackerMixin
+    if not (manager
+            and type(manager.UpdateAll) == "function"
+            and type(manager.SetModuleContainer) == "function"
+            and type(manager.GetContainerForModule) == "function"
+            and type(questMixin) == "table"
+            and type(questMixin.ShouldDisplayQuest) == "function"
+            and tracker.ShouldDisplayQuest and tracker.SetHeader
+            and tracker.MarkDirty
+            and CreateFrame and Mixin and hooksecurefunc) then
+        PrintMessage(L.MSG_SECTIONS_DISABLED
+            or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
         return
     end
 
-    -- The manager maps containers and modules in a deferred Init, and until
-    -- the stock quest module is mapped and ordered there is nothing safe to
-    -- attach to. The Init that completes the mapping always ends in another
-    -- UpdateAll, so just wait for it.
-    if not container or type(questOrder) ~= "number" then
-        return
+    -- One entry per new section, in on-screen order, slotted directly above
+    -- the catch-all. A classification missing from a future client's enum is
+    -- skipped; its quests stay in the catch-all. Headers use Blizzard's
+    -- localized quest-type names when available, then the addon's own
+    -- translations, then English.
+    local SECTIONS = {
+        { name = "Important", fallbackHeader = L.Important or "Important" },
+        { name = "Legendary", fallbackHeader = L.Legendary or "Legendary" },
+        { name = "Meta",      fallbackHeader = L.Meta or "Meta" },
+        { name = "Recurring", fallbackHeader = L.Recurring or "Repeatable" },
+    }
+    local OTHER_HEADER = L.OTHER_QUESTS or "Other Quests"
+
+    -- The stock quest module's event list minus QUEST_AUTOCOMPLETE: auto-quest
+    -- popup state is global and the stock module keeps maintaining it; the new
+    -- sections only need to know when to redraw. Popups, like quests, render
+    -- in whichever section's display filter claims them.
+    local SECTION_EVENTS = {
+        "QUEST_LOG_UPDATE",
+        "QUEST_WATCH_LIST_CHANGED",
+        "SUPER_TRACKING_CHANGED",
+        "QUEST_TURNED_IN",
+        "QUEST_POI_UPDATE",
+        "SUPER_TRACKING_PATH_UPDATED",
+    }
+
+    -- Display filters run inside Blizzard's layout pass, where an uncaught
+    -- error would abort the whole tracker update, so every lookup the addon
+    -- adds there is guarded. A failed classification lookup reports nil: the
+    -- quest is claimed by no new section and lands in the catch-all — shown
+    -- in the wrong group for a pass, never dropped.
+    local function CallGetQuestClassification(quest)
+        return quest:GetQuestClassification()
     end
 
-    -- Build every section once, before touching anything visible.
-    if not splitBuilt then
-        for _, section in ipairs(SECTIONS) do
-            local classification = classifications[section.name]
-            if classification ~= nil then
-                local ok, module = pcall(CreateSection, section, classification)
-                if not ok then
-                    FailSplit()
-                    return
-                end
-                table.insert(sectionModules, module)
-            end
+    local function GetClassification(quest)
+        local ok, classification = pcall(CallGetQuestClassification, quest)
+        if ok then
+            return classification
         end
-        if #sectionModules == 0 then
-            FailSplit()
-            return
+        return nil
+    end
+
+    -- Blizzard's own filter (no tasks, bounties, disabled or campaign quests)
+    -- decides what belongs to the quest tracker at all; each section then
+    -- claims its classification's slice of that, keeping the sections an
+    -- exact partition of what the stock module would have shown.
+    local stockShouldDisplayQuest = questMixin.ShouldDisplayQuest
+    local function MakeSectionFilter(classification)
+        return function(module, quest)
+            local ok, stockWants = pcall(stockShouldDisplayQuest, module, quest)
+            return ok and stockWants == true
+                and GetClassification(quest) == classification
         end
+    end
+
+    local function CreateSection(section, classification)
+        local module = CreateFrame("Frame", "QuestUIReorder" .. section.name .. "Tracker",
+            nil, "ObjectiveTrackerModuleTemplate")
+        Mixin(module, questMixin)
+        -- The template binds the OnEvent script before the quest mixin is
+        -- copied onto the frame; rebinding guarantees the quest handler
+        -- receives events regardless of how method-named scripts resolve.
+        module:SetScript("OnEvent", module.OnEvent)
+
+        local info = QuestUtil and QuestUtil.GetQuestClassificationInfo
+            and QuestUtil.GetQuestClassificationInfo(classification)
+        local headerText = (info and info.text) or section.fallbackHeader
+        module.headerText = headerText
+        module:SetHeader(headerText)
+
+        module.events = SECTION_EVENTS -- read once, when the manager registers the module
+        module.qurClassification = classification
+        module.ShouldDisplayQuest = MakeSectionFilter(classification)
+        return module
+    end
+
+    local sectionModules = {}
+    local claimedClassifications = {}
+    local splitBuilt = false  -- sections created and classifications claimed (once)
+    local splitActive = false -- sections registered and catch-all narrowed right now
+    local splitFailed = false -- latched: no further attempts this session
+
+    -- The player's one option (see Options.lua): split on or off. Default is
+    -- OFF as of 0.9.0 — see the 12.1 note below. Read straight from the saved
+    -- variable so the setting is still honoured if the options panel could not
+    -- be registered; an absent or unreadable variable means off.
+    --
+    -- WHY THE DEFAULT FLIPPED (retail 12.1.0, build 69587):
+    -- Registering a module with the tracker's container sets the container's
+    -- `needsSorting` flag and gives the module a `uiOrder`. Both values are
+    -- written by this addon, so both are tainted, and
+    -- ObjectiveTrackerContainerMixin:Update reads them in its first five lines
+    -- to re-sort the module list. That taints the whole update, including the
+    -- scenario module, which has hasDisplayPriority and so runs first. Its
+    -- LayoutContents calls ShouldShowMawBuffs() unconditionally, which calls
+    -- C_UnitAuras.GetAuraDataByIndex — an aura read that hard-errors under
+    -- taint in 12.1. The error unwinds the entire container update, so nothing
+    -- in the tracker repaints until /reload.
+    --
+    -- Nothing in this addon can avoid it: `needsSorting` stays tainted for the
+    -- rest of the session once we register, and the only code that clears it
+    -- runs inside the already-tainted update. Blizzard is expected to fix the
+    -- unconditional aura read in 12.1.5 (on the PTR); when that lands and is
+    -- verified, the default can go back to on and this comment can go.
+    local function IsSplitEnabled()
+        local db = QuestUIReorderDB
+        if type(db) ~= "table" then
+            return false
+        end
+        return db.splitSections == true
+    end
+
+    local function RemoveSections()
         for _, module in ipairs(sectionModules) do
-            claimedClassifications[module.qurClassification] = true
+            local container = manager:GetContainerForModule(module)
+            if container and type(container.RemoveModule) == "function" then
+                container:RemoveModule(module) -- also marks the container dirty
+            end
+            -- A removed module is never laid out again, so stock code can no
+            -- longer hide it; do that here or it would linger with stale
+            -- content. Events stay registered: re-adding the module skips
+            -- registration (the mixin's one-time init flag), and a MarkDirty
+            -- from an unlisted module is ignored.
+            module:Hide()
         end
-        splitBuilt = true
     end
 
-    -- Slot the sections into the gap directly above the stock Quests
-    -- module; stock uiOrder values are consecutive integers, so the open
-    -- interval below it is free. Registration is pcall'd because the
-    -- module's first SetContainer registers its event list, and a renamed
-    -- event would otherwise throw out of this hook into Blizzard's Init.
-    local step = 1 / (#sectionModules + 1)
-    for i, module in ipairs(sectionModules) do
-        module.uiOrder = questOrder - (#sectionModules + 1 - i) * step
-        if not pcall(manager.SetModuleContainer, manager, module, container) then
-            FailSplit()
+    local function FailSplit()
+        RemoveSections()
+        for _, module in ipairs(sectionModules) do
+            module:UnregisterAllEvents()
+        end
+        splitFailed = true
+        PrintMessage(L.MSG_SECTIONS_DISABLED
+            or "the Blizzard quest tracker has changed; separate quest sections are disabled (sorting still works).")
+    end
+
+    -- The catch-all switch is built once and re-applied/restored on toggle,
+    -- so repeated toggling can never stack wrappers around Blizzard's filter.
+    local stockShouldDisplay = nil
+    local stockHeaderText = nil
+    local narrowedShouldDisplay = nil
+
+    local function ApplyCatchAll()
+        if not narrowedShouldDisplay then
+            stockShouldDisplay = tracker.ShouldDisplayQuest
+            stockHeaderText = tracker.headerText
+            narrowedShouldDisplay = function(self, quest)
+                -- Guarded for the same reason the section filters are: this
+                -- closure is addon-created, so Blizzard's own filter runs
+                -- tainted inside it, and an error here would abort the whole
+                -- tracker layout pass rather than cost one quest one pass.
+                local ok, stockWants = pcall(stockShouldDisplay, self, quest)
+                if not (ok and stockWants == true) then
+                    return false
+                end
+                return not claimedClassifications[GetClassification(quest)]
+            end
+        end
+        tracker.ShouldDisplayQuest = narrowedShouldDisplay
+        tracker.headerText = OTHER_HEADER
+        tracker:SetHeader(OTHER_HEADER)
+    end
+
+    local function RestoreCatchAll()
+        tracker.ShouldDisplayQuest = stockShouldDisplay
+        tracker.headerText = stockHeaderText
+        tracker:SetHeader(stockHeaderText)
+    end
+
+    local function ActivateSplit()
+        -- The container is resolved through the stock quest module rather than
+        -- assumed, so the new sections always live wherever Blizzard put the
+        -- section they split.
+        local container = manager:GetContainerForModule(tracker)
+        local questOrder = tracker.uiOrder
+
+        if splitActive then
+            -- Self-heal: if something rebuilt the module list (the manager's
+            -- RemoveAllModules ends in another UpdateAll), put the sections
+            -- back beside the stock quest module — the narrowed catch-all
+            -- filter must never run without them.
+            if container then
+                for _, module in ipairs(sectionModules) do
+                    if manager:GetContainerForModule(module) ~= container then
+                        pcall(manager.SetModuleContainer, manager, module, container)
+                    end
+                end
+            end
             return
         end
-    end
 
-    -- SetModuleContainer no-ops silently for a container the manager does
-    -- not know; verify every registration and roll the whole split back on
-    -- any miss, so a half-split can never display a quest twice.
-    for _, module in ipairs(sectionModules) do
-        if manager:GetContainerForModule(module) ~= container then
-            FailSplit()
+        -- The manager maps containers and modules in a deferred Init, and until
+        -- the stock quest module is mapped and ordered there is nothing safe to
+        -- attach to. The Init that completes the mapping always ends in another
+        -- UpdateAll, so just wait for it.
+        if not container or type(questOrder) ~= "number" then
             return
         end
+
+        -- Build every section once, before touching anything visible.
+        if not splitBuilt then
+            for _, section in ipairs(SECTIONS) do
+                local classification = classifications[section.name]
+                if classification ~= nil then
+                    local ok, module = pcall(CreateSection, section, classification)
+                    if not ok then
+                        FailSplit()
+                        return
+                    end
+                    table.insert(sectionModules, module)
+                end
+            end
+            if #sectionModules == 0 then
+                FailSplit()
+                return
+            end
+            for _, module in ipairs(sectionModules) do
+                claimedClassifications[module.qurClassification] = true
+            end
+            splitBuilt = true
+        end
+
+        -- Slot the sections into the gap directly above the stock Quests
+        -- module; stock uiOrder values are consecutive integers, so the open
+        -- interval below it is free. Registration is pcall'd because the
+        -- module's first SetContainer registers its event list, and a renamed
+        -- event would otherwise throw out of this hook into Blizzard's Init.
+        local step = 1 / (#sectionModules + 1)
+        for i, module in ipairs(sectionModules) do
+            module.uiOrder = questOrder - (#sectionModules + 1 - i) * step
+            if not pcall(manager.SetModuleContainer, manager, module, container) then
+                FailSplit()
+                return
+            end
+        end
+
+        -- SetModuleContainer no-ops silently for a container the manager does
+        -- not know; verify every registration and roll the whole split back on
+        -- any miss, so a half-split can never display a quest twice.
+        for _, module in ipairs(sectionModules) do
+            if manager:GetContainerForModule(module) ~= container then
+                FailSplit()
+                return
+            end
+        end
+
+        -- Only now does anything visible change: the new sections claim their
+        -- quests and the stock section becomes the catch-all.
+        ApplyCatchAll()
+        splitActive = true
+
+        -- A dirty-driven relayout can serve cached layouts for modules it does
+        -- not consider dirty, so explicitly dirty everything whose contents
+        -- just changed meaning.
+        for _, module in ipairs(sectionModules) do
+            module:MarkDirty()
+        end
+        tracker:MarkDirty()
     end
 
-    -- Only now does anything visible change: the new sections claim their
-    -- quests and the stock section becomes the catch-all.
-    ApplyCatchAll()
-    splitActive = true
-
-    -- A dirty-driven relayout can serve cached layouts for modules it does
-    -- not consider dirty, so explicitly dirty everything whose contents
-    -- just changed meaning.
-    for _, module in ipairs(sectionModules) do
-        module:MarkDirty()
+    local function DeactivateSplit()
+        if not splitActive then
+            return
+        end
+        RemoveSections()
+        RestoreCatchAll()
+        splitActive = false
+        tracker:MarkDirty()
     end
-    tracker:MarkDirty()
+
+    -- Called below whenever the tracker updates, and by Options.lua when the
+    -- player toggles the checkbox. Activation self-defers until the tracker
+    -- is ready; deactivation takes effect immediately.
+    local function ApplySplitSetting()
+        if splitFailed then
+            return
+        end
+        if IsSplitEnabled() then
+            ActivateSplit()
+        else
+            DeactivateSplit()
+        end
+    end
+    ns.ApplySplitSetting = ApplySplitSetting
+
+    -- ObjectiveTrackerManager:Init runs deferred (after PLAYER_ENTERING_WORLD
+    -- and VARIABLES_LOADED) through a closure captured before any addon could
+    -- hook Init itself — but it finishes with a dynamic self:UpdateAll(), so
+    -- hooking that catches the exact moment the tracker becomes ready. Saved
+    -- variables load before either event, so the setting is readable by then.
+    hooksecurefunc(manager, "UpdateAll", ApplySplitSetting)
+
 end
 
-local function DeactivateSplit()
-    if not splitActive then
-        return
-    end
-    RemoveSections()
-    RestoreCatchAll()
-    splitActive = false
-    tracker:MarkDirty()
-end
-
--- Called below whenever the tracker updates, and by Options.lua when the
--- player toggles the checkbox. Activation self-defers until the tracker
--- is ready; deactivation takes effect immediately.
+-- The stand-down has to be decided after the saved variables exist, because
+-- the player can override it — and saved variables load *after* an addon's
+-- files run, so nothing readable at file scope would reflect the checkbox.
+-- ADDON_LOADED is the first point both are true. Installing here is still
+-- early enough: ObjectiveTrackerManager:Init is deferred until after
+-- PLAYER_ENTERING_WORLD, so the hooks are in place long before the tracker
+-- first builds.
+--
+-- The override is the existing checkbox. On a stood-down client, ticking it
+-- means "run anyway", and it takes a /reload: by the time the box is ticked
+-- the load-time decision has already been made.
 -- Everyone who has ever run an earlier version has `splitSections = true`
 -- written to their saved variables — Settings.RegisterAddOnSetting writes the
 -- then-default into the key on first registration — so flipping the default
@@ -470,25 +538,43 @@ end
 
 ns.ResetSplitForRetail121 = ResetSplitForRetail121
 
-local function ApplySplitSetting()
-    if splitFailed then
-        return
-    end
-    -- Options.lua runs this first, at ADDON_LOADED, so the checkbox binds to
-    -- the migrated value. This call is the fallback for a session where the
-    -- options panel could not be registered; the flag makes it a no-op after.
+local function DecideAndInstall()
+    -- Before reading the override: a player who has never been migrated still
+    -- has splitSections = true from the old default, which must not be
+    -- mistaken for a deliberate "run anyway".
     ResetSplitForRetail121()
-    if IsSplitEnabled() then
-        ActivateSplit()
+    local db = QuestUIReorderDB
+    local override = type(db) == "table" and db.splitSections == true
+    if standDownApplies and not override then
+        -- Stand down, but stay visible: Options.lua still registers the
+        -- category so the addon does not look uninstalled, and the checkbox
+        -- stays live so the player can override this.
+        ns.standDown = true
+        PrintMessage(L.MSG_DISABLED_121_TAINT
+            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
     else
-        DeactivateSplit()
+        ns.overrodeStandDown = standDownApplies and override
+        Install()
+    end
+    -- Called here, not scheduled by Options.lua itself: the flags above are what
+    -- it keys off, and callback order between two ContinueOnAddOnLoaded
+    -- registrations is not guaranteed. This ordering is.
+    if type(ns.RegisterOptions) == "function" then
+        ns.RegisterOptions()
     end
 end
-ns.ApplySplitSetting = ApplySplitSetting
 
--- ObjectiveTrackerManager:Init runs deferred (after PLAYER_ENTERING_WORLD
--- and VARIABLES_LOADED) through a closure captured before any addon could
--- hook Init itself — but it finishes with a dynamic self:UpdateAll(), so
--- hooking that catches the exact moment the tracker becomes ready. Saved
--- variables load before either event, so the setting is readable by then.
-hooksecurefunc(manager, "UpdateAll", ApplySplitSetting)
+if EventUtil and type(EventUtil.ContinueOnAddOnLoaded) == "function" then
+    EventUtil.ContinueOnAddOnLoaded(ADDON_NAME, DecideAndInstall)
+else
+    -- No EventUtil: the saved variable cannot be read safely, so honour the
+    -- stand-down and skip the override rather than risk installing on a
+    -- client where this freezes the tracker.
+    if not standDownApplies then
+        Install()
+    else
+        ns.standDown = true
+        PrintMessage(L.MSG_DISABLED_121_TAINT
+            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
+    end
+end

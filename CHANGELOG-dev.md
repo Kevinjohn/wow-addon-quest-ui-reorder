@@ -9,7 +9,56 @@ Newest first; follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Changed — 12.1 taint incompatibility: split default flipped to off
+### Changed — 12.1: whole-addon stand-down (supersedes the 0.9.0 default flip)
+- **0.9.0's premise was wrong.** It flipped the split default to off on the
+  finding that the container's `Update` was tainted by our `uiOrder` /
+  `needsSorting` writes, and concluded Part 1 (sorting) was safe because the
+  `BuildQuestWatchInfos` replacement taints only the quest module's own layout,
+  which runs in the second loop at `ObjectiveTrackerContainer.lua:74`, after the
+  scenario module has already updated at :64. Verified in game: the freeze still
+  happened with `splitSections = false`.
+- **The step that was missed is taint laundering through the deferred dirty
+  update.** `ObjectiveTrackerContainerMixin` mixes in `DirtiableMixin`
+  (Container:15) and sets its dirty method to its own `Update`
+  (Container:18-19, `dirtyUpdate = true`). `DirtiableMixin:MarkDirty`
+  (`MixinUtil.lua:346-352`) calls `RunNextFrame(self.dirtyCallback)`. Any
+  tainted execution that reaches a `MarkDirty()` therefore schedules the *next*
+  container update from a tainted context, and that update runs tainted from
+  its first instruction — including the `hasDisplayPriority` loop at
+  Container:64, which is the scenario module. So it does not matter where in a
+  pass our code runs; it is the following pass that is poisoned. No subset of
+  this addon is safe on 12.1.
+- **Why it presents as intermittent.** The deferred path passes
+  `dirtyUpdate = true`, so a scenario module that is not dirty, is complete,
+  fits the available height and is not collapsed returns at
+  `ObjectiveTrackerModule.lua:134-140` *before* `LayoutContents`, and the aura
+  read never happens despite the taint. The error needs a full (non-dirty)
+  update, a dirty scenario module, or one that is incomplete/collapsed/
+  truncated. Reproduced on demand in game by forcing a full update; a quiet
+  session proves nothing.
+- **Change:** `BROKEN_FROM = 120100` / `FIXED_FROM = nil` gate the whole addon.
+  `FIXED_FROM` stays nil until a build is verified fixed in game — deliberately
+  not pointed at 12.1.5, since guessing wrong re-breaks every player.
+- **Structural:** everything the addon does now lives in `Install()`, called
+  from `DecideAndInstall` at ADDON_LOADED rather than at file scope. It had to
+  move because saved variables load *after* an addon's files run, so the
+  override is unreadable at file scope; installing-then-no-opping would not
+  work either, since calling through any addon-defined replacement taints the
+  pass regardless of the body. `ResetSplitForRetail121` was lifted above the
+  decision: an unmigrated player still has `splitSections = true` from the old
+  default, which must not be read as a deliberate override.
+- **Options panel:** `ns.standDown` keeps the category registered — an addon
+  that vanishes from Settings reads as uninstalled. Options.lua no longer
+  schedules itself with `EventUtil.ContinueOnAddOnLoaded`; two callbacks for the
+  same addon are **not** guaranteed to run in registration order, and relying on
+  that left the panel empty in every state. QuestUIReorder.lua now calls
+  `ns.RegisterOptions()` directly once it has decided, which is ordered by
+  construction (Options.lua's file scope runs first, TOC order).
+- **New strings:** `MSG_DISABLED_121_TAINT` (chat + tooltip) and
+  `OPTION_SPLIT_OVERRIDE_121` (what ticking the box actually does), both
+  translated into all ten shipped locales.
+
+### Changed — 12.1 taint incompatibility: split default flipped to off (0.9.0)
 - **Symptom:** on retail 12.1.0 (build 69587) the entire Objective Tracker
   stops repainting — every module, not just Quests — until `/reload`. With
   `scriptErrors` off (the default) nothing is shown to the player.
