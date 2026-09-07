@@ -14,11 +14,9 @@
 -- and Settings.Default.True (the comment in Blizzard's file saying
 -- "VarType.Bool"/"Defaults" is stale — do not trust it).
 
-local ADDON_NAME, ns = ...
+local _, ns = ...
 
--- If the main file disabled itself (or just the split) at load, the
--- checkbox would toggle nothing; don't offer one.
-if type(ns) ~= "table" or type(ns.ApplySplitSetting) ~= "function" then
+if type(ns) ~= "table" then
     return
 end
 
@@ -29,8 +27,7 @@ if not (Settings
         and type(Settings.RegisterAddOnSetting) == "function"
         and type(Settings.CreateCheckbox) == "function"
         and type(Settings.RegisterAddOnCategory) == "function"
-        and type(Settings.VarType) == "table"
-        and EventUtil and type(EventUtil.ContinueOnAddOnLoaded) == "function") then
+        and type(Settings.VarType) == "table") then
     ns.PrintMessage(L.MSG_OPTIONS_UNAVAILABLE
         or "the Blizzard settings panel has changed; the options checkbox is unavailable (the addon keeps working with its defaults).")
     return
@@ -61,7 +58,11 @@ local function RegisterOptions()
     assert(setting and type(setting.SetValueChangedCallback) == "function",
         "unexpected setting object")
     setting:SetValueChangedCallback(function()
-        ns.ApplySplitSetting()
+        -- Nothing to apply while stood down; the value is still recorded, so
+        -- the choice survives to the patch that makes it mean something.
+        if type(ns.ApplySplitSetting) == "function" then
+            ns.ApplySplitSetting()
+        end
     end)
 
     -- The warning is appended to the tooltip rather than folded into the
@@ -69,8 +70,20 @@ local function RegisterOptions()
     -- survive translation as its own sentence.
     local tooltip = L.OPTION_SPLIT_TOOLTIP
         or "Show Important, Legendary, Meta, and Repeatable quests in their own sections. When unchecked, all tracked quests stay in one Quests section, still sorted by type."
-    local warning = L.OPTION_SPLIT_WARNING_121
-        or "Warning: because of a bug in patch 12.1, the quest tracker does not update while this is on — you have to use /reload to see changes. Blizzard is expected to fix this in 12.1.5. Best left off until then."
+    local warning
+    if ns.standDown then
+        -- Reuses the chat string, which says exactly the right thing and is
+        -- already translated; it is written lowercase for the "AddonName: "
+        -- chat prefix, so lift the first letter for a sentence on its own.
+        warning = (L.MSG_DISABLED_121_TAINT
+            or "disabled on patch 12.1: a Blizzard bug freezes the whole quest tracker when an addon changes it, so nothing is hooked. The addon will start working again on a patch that fixes it.")
+            :gsub("^%l", string.upper)
+        warning = warning .. " " .. (L.OPTION_SPLIT_OVERRIDE_121
+            or "Ticking this runs the addon anyway, after a /reload. The quest tracker will then stop updating until you reload it again.")
+    else
+        warning = L.OPTION_SPLIT_WARNING_121
+            or "Warning: because of a bug in patch 12.1, the quest tracker does not update while this is on — you have to use /reload to see changes. Blizzard is expected to fix this in 12.1.5. Best left off until then."
+    end
     if RED_FONT_COLOR then
         warning = RED_FONT_COLOR:WrapTextInColorCode(warning)
     end
@@ -80,11 +93,25 @@ local function RegisterOptions()
     Settings.RegisterAddOnCategory(category)
 end
 
--- Saved variables are only readable once ADDON_LOADED has fired for this
--- addon; ContinueOnAddOnLoaded is Blizzard's own helper for exactly that.
-EventUtil.ContinueOnAddOnLoaded(ADDON_NAME, function()
+-- Deliberately NOT scheduled here. Both flags this depends on
+-- (ns.standDown, ns.ApplySplitSetting) are decided in QuestUIReorder.lua at
+-- ADDON_LOADED, and two EventUtil.ContinueOnAddOnLoaded callbacks for the same
+-- addon are not guaranteed to run in registration order — relying on that left
+-- the Settings panel empty, because this ran while both flags were still nil.
+-- Instead QuestUIReorder.lua calls this directly once it has decided, which is
+-- ordered by construction. Options.lua loads after it (TOC order), so this
+-- export is always in place before that call happens.
+--
+-- Register whenever there is something to show: either a live split to toggle,
+-- or a stand-down to explain. An addon that silently disappears from the
+-- Settings list reads as uninstalled, which is worse than one that says why it
+-- is idle.
+function ns.RegisterOptions()
+    if type(ns.ApplySplitSetting) ~= "function" and not ns.standDown then
+        return
+    end
     if not pcall(RegisterOptions) then
         ns.PrintMessage(L.MSG_OPTIONS_FAILED
             or "the options checkbox could not be created (the addon keeps working with its defaults).")
     end
-end)
+end

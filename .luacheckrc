@@ -17,6 +17,7 @@ read_globals = {
     "Settings",
     "hooksecurefunc",
     "Mixin",
+    "GetBuildInfo",
     "ORANGE_FONT_COLOR",
     "RED_FONT_COLOR",
     -- Blizzard tracker globals: read-only, except the fields below

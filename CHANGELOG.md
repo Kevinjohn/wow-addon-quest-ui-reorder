@@ -4,8 +4,11 @@ What changed in each release. Newest first.
 
 <!-- Developer-level detail (architecture, Blizzard internals, rejected approaches) lives in CHANGELOG-dev.md. -->
 
+## 0.9.1 — 2026-09-07
+- The addon now turns itself off on patch 12.1 and says so once at login. A Blizzard bug freezes the whole quest tracker — every section, not just quests — as soon as any addon changes it, and no part of this addon avoids that, so sorting is off for now too. The options checkbox is still there and can force it back on if you want it, at the cost of the freeze.
+
 ## 0.9.0 — 2026-09-07
-- Splitting quests into their own sections is now off by default: a bug in patch 12.1 stops the quest tracker updating in real time while it is on, so changes only appear after a /reload. Quests are still sorted correctly, and you can turn the sections back on in the addon's options.
+- Splitting quests into their own sections is off by default: a bug in patch 12.1 stops the quest tracker updating in real time while it is on, so changes only appear after a /reload. (The claim here that quests were still sorted correctly was wrong — sorting hits the same bug. Fixed in 0.9.1.)
 
 ## 0.8.2 — 2026-08-22
 - Updated for retail patch 12.1 — no longer shows as out of date.
